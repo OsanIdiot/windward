@@ -49,6 +49,19 @@ test('departure accelerates smoothly and pause/resume starts again from rest',()
   assert.ok(resumed.motion.speed>0&&resumed.motion.speed<.15);
   assert.ok(N.distance(resumed.position,s.position)<1);
 });
+
+test('all ship tiers cruise 30 percent slower without changing distance-based travel costs',()=>{
+  for(let tier=0;tier<E.SHIPS.length;tier++) for(const mode of ['manual','auto']) {
+    const s=openWater();s.ship=tier;s.motion.speed=1;s.navigation.mode=mode;
+    const next=E.advance(s,1),distance=N.distance(s.position,next.position);
+    assert.ok(Math.abs(distance-45*.7*E.SHIPS[tier].speed)<1e-7,`${mode} tier ${tier+1} speed`);
+    assert.equal(next.motion.speed,1,'HUD still shows full cruise at the new maximum');
+    const quote=E.passage(s,s.navigation.points),arrived=run(next);
+    assert.equal(arrived.gold,s.gold-quote.cost);
+    assert.equal(arrived.day,s.day+quote.days);
+    assert.ok(E.valid(arrived));
+  }
+});
 test('turning slows the ship without teleporting and straight sailing restores cruise',()=>{
   let s=openWater();for(let i=0;i<3;i++)s=E.advance(s,1);
   const before=JSON.parse(JSON.stringify(s));

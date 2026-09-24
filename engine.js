@@ -88,7 +88,7 @@
     const state = JSON.parse(JSON.stringify(input)), nav = state.navigation;
     state.motion ||= motionDefaults(state);
     if (!nav?.running) { stopMotion(state); return state; }
-    const motion = state.motion, cruise = 45 * SHIPS[state.ship].speed;
+    const motion = state.motion, cruise = 31.5 * SHIPS[state.ship].speed;
     let remaining = seconds;
     // Small time slices preserve coastal safety and consistent handling at any frame rate.
     while (remaining > 0.000001 && nav.points.length) {
