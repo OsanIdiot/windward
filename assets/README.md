@@ -1,5 +1,7 @@
 # Harbor Background
 
+Replaceable sound files and their provenance are documented in [audio/README.md](audio/README.md).
+
 - Asset: `harbor-town.webp` (1536 x 1024; about 421 KiB).
 - Created with the built-in image generation tool for Windward.
 - Original generated PNG retained locally; the deployed WebP is a format-compressed copy.
