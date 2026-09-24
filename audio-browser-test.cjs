@@ -22,7 +22,7 @@ async function instrument(context) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=12';
+    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=14';
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     await instrument(context);
     const page = await context.newPage(), errors = [];
@@ -42,11 +42,14 @@ async function instrument(context) {
     await page.waitForFunction(() => audioProbe.rms() > .001);
     await page.locator('#voyage-canvas').focus(); await page.keyboard.press('ArrowLeft');
     await page.waitForFunction(() => audioProbe.gains[3].gain.value > .85);
+    await page.waitForFunction(() => audioProbe.gains[7].gain.value > .5);
+    assert.ok(await page.evaluate(() => audioProbe.gains[2].gain.value / audioProbe.gains[1].gain.value < .1), 'Water texture has no large surf-like swell');
+    assert.ok(await page.evaluate(() => audioProbe.rms() < .15), 'Ambient output stays restrained');
     await page.locator('#voyage-pause').click();
-    await page.waitForFunction(() => audioProbe.gains[3].gain.value < .65);
+    await page.waitForFunction(() => audioProbe.gains[3].gain.value < .2 && audioProbe.gains[7].gain.value < .01);
     await page.locator('#open-chart-button').click();
     assert.equal(await page.evaluate(() => audioProbe.contexts.length), 1);
-    assert.equal(await page.evaluate(() => audioProbe.sources), 2, 'View switching does not duplicate sources');
+    assert.equal(await page.evaluate(() => audioProbe.sources), 3, 'Flow, wind and rigging sources are not duplicated by view switching');
     await page.locator('#return-sea-button').click();
     const sound = page.locator('#game-screen [data-sound]');
     await page.evaluate(() => { for (let i = 0; i < 8; i++) document.querySelector('#game-screen [data-sound]').click(); });
@@ -63,7 +66,7 @@ async function instrument(context) {
     await page.waitForFunction(() => audioProbe.contexts[0]?.state === 'running');
     await page.locator('#voyage-rescue').click();
     await page.locator('#voyage-enter-port').click();
-    assert.equal(await page.evaluate(() => audioProbe.oscillators), 6, 'Two swells plus four bell partials');
+    assert.equal(await page.evaluate(() => audioProbe.oscillators), 6, 'Two subtle texture modulators plus four bell partials');
     await page.waitForFunction(() => audioProbe.gains[3].gain.value < .01 && audioProbe.gains[6].gain.value < .01);
     await page.locator('#harbor-button').click();
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });

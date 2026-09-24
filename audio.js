@@ -3,7 +3,7 @@
   root.createSeaAudio = function ({ changed = () => {}, notify = () => {} } = {}) {
     const key = 'windward-audio-enabled';
     const AudioContext = root.AudioContext || root.webkitAudioContext;
-    let enabled = true, context, master, waves, wind, failed = !AudioContext;
+    let enabled = true, context, master, flow, wind, rigging, failed = !AudioContext;
     let scene = { active: false, sea: false, moving: false }, signature = '', resuming = false;
     const bells = new Set();
     try { enabled = localStorage.getItem(key) !== 'off'; } catch (_) {}
@@ -17,7 +17,7 @@
       param.cancelScheduledValues(now);
       param.setTargetAtTime(value, now, seconds / 3);
     }
-    function noise(seconds, brown) {
+    function noise(seconds, warm) {
       const buffer = context.createBuffer(2, Math.ceil(context.sampleRate * seconds), context.sampleRate);
       for (let channel = 0; channel < 2; channel++) {
         const data = buffer.getChannelData(channel);
@@ -25,24 +25,54 @@
         for (let i = 0; i < data.length; i++) {
           const white = Math.random() * 2 - 1;
           previous = (previous + .02 * white) / 1.02;
-          // Taper both ends to avoid a click at the loop boundary.
-          const edge = Math.min(1, i / (context.sampleRate * .3), (data.length - 1 - i) / (context.sampleRate * .3));
-          data[i] = (brown ? previous * 3.5 : white) * edge;
+          data[i] = warm ? previous * 1.2 + white * .22 : white;
+        }
+        // Crossfade the seam instead of fading to silence like a receding wave.
+        const overlap = Math.floor(context.sampleRate * .2);
+        for (let i = 0; i < overlap; i++) {
+          const mix = i / overlap;
+          data[data.length - overlap + i] = data[data.length - overlap + i] * (1 - mix) + data[i] * mix;
         }
       }
       const source = context.createBufferSource();
-      source.buffer = buffer; source.loop = true;
+      source.buffer = buffer; source.loop = true; source.loopStart = .2;
       return source;
     }
-    function layer({ seconds, brown, type, frequency, gain, swell, pace }) {
-      const source = noise(seconds, brown), filter = context.createBiquadFilter();
+    function layer({ seconds, warm, type, frequency, gain, swell, pace }) {
+      const source = noise(seconds, warm), filter = context.createBiquadFilter();
       filter.type = type; filter.frequency.value = frequency; filter.Q.value = .55;
+      const rumbleCut = context.createBiquadFilter();
+      rumbleCut.type = 'highpass'; rumbleCut.frequency.value = 180; rumbleCut.Q.value = .5;
       const breathing = context.createGain(), amount = context.createGain(), output = context.createGain();
       breathing.gain.value = gain; amount.gain.value = swell; output.gain.value = 0;
       const oscillator = context.createOscillator(); oscillator.frequency.value = pace;
       oscillator.connect(amount); amount.connect(breathing.gain);
-      source.connect(filter); filter.connect(breathing); breathing.connect(output); output.connect(master);
+      source.connect(rumbleCut); rumbleCut.connect(filter); filter.connect(breathing); breathing.connect(output); output.connect(master);
       source.start(); oscillator.start();
+      return output;
+    }
+    function deckSounds() {
+      const rate = context.sampleRate, buffer = context.createBuffer(2, rate * 29, rate);
+      const left = buffer.getChannelData(0), right = buffer.getChannelData(1);
+      const events = [[1.3, .42, true], [3.8, .65, false], [7.1, .3, true], [11.6, .85, false], [15.2, .55, true], [20.4, .7, false], [25.7, .34, true]];
+      for (const [start, duration, wood] of events) {
+        const pan = Math.random() * .8 - .4, pitch = 145 + Math.random() * 65;
+        let phase = 0, cloth = 0;
+        for (let i = 0; i < duration * rate; i++) {
+          const t = i / rate, progress = t / duration, envelope = Math.sin(Math.PI * progress) ** 2;
+          phase += 2 * Math.PI * pitch * (1 + .18 * Math.sin(progress * Math.PI)) / rate;
+          cloth = .78 * cloth + .22 * (Math.random() * 2 - 1);
+          const value = wood
+            ? .075 * envelope * (Math.sin(phase) + .25 * Math.sin(phase * 2) + .1 * Math.sin(phase * 3)) * (.8 + .2 * Math.sin(t * 170))
+            : .26 * envelope * cloth * (.55 + .45 * Math.sin(t * 65) ** 2);
+          const index = Math.floor(start * rate) + i;
+          left[index] += value * (1 - pan);
+          right[index] += value * (1 + pan);
+        }
+      }
+      const source = context.createBufferSource(), output = context.createGain();
+      source.buffer = buffer; source.loop = true; output.gain.value = 0;
+      source.connect(output); output.connect(master); source.start();
       return output;
     }
     function initialize() {
@@ -50,8 +80,9 @@
       try {
         context = new AudioContext();
         master = context.createGain(); master.gain.value = 0; master.connect(context.destination);
-        waves = layer({ seconds: 11, brown: true, type: 'lowpass', frequency: 1100, gain: .48, swell: .3, pace: .13 });
-        wind = layer({ seconds: 13, brown: false, type: 'bandpass', frequency: 650, gain: .13, swell: .075, pace: .047 });
+        flow = layer({ seconds: 11, warm: true, type: 'lowpass', frequency: 2200, gain: .58, swell: .045, pace: .73 });
+        wind = layer({ seconds: 17, warm: false, type: 'bandpass', frequency: 950, gain: .085, swell: .012, pace: .061 });
+        rigging = deckSounds();
         context.onstatechange = () => {
           if (context.state === 'running' && (!enabled || !scene.active)) sync();
           else report();
@@ -79,8 +110,9 @@
         report(); return;
       }
       fade(master.gain, .45);
-      fade(waves.gain, scene.sea ? scene.moving ? 1 : .55 : 0, 1.2);
-      fade(wind.gain, scene.sea ? scene.moving ? 1 : .3 : 0, 1.5);
+      fade(flow.gain, scene.sea ? scene.moving ? 1 : .12 : 0, .9);
+      fade(wind.gain, scene.sea ? scene.moving ? 1 : .4 : 0, 1.5);
+      fade(rigging.gain, scene.sea && scene.moving ? .65 : 0, .7);
       if (context.state !== 'running' && !resuming) {
         resuming = true;
         context.resume().then(() => {

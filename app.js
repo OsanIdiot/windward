@@ -362,7 +362,7 @@
       button.textContent = !supported ? '소리 미지원' : waiting ? '소리 대기' : enabled ? '소리 켜짐' : '소리 꺼짐';
       button.setAttribute('aria-pressed', String(enabled && supported));
       button.setAttribute('aria-label', !supported ? '항해 소리 미지원' : enabled ? '항해 소리 끄기' : '항해 소리 켜기');
-      button.title = waiting ? '화면을 터치하면 소리가 재개됩니다. 누르면 소리를 끕니다.' : '파도·바람·입항 알림음';
+      button.title = waiting ? '화면을 터치하면 소리가 재개됩니다. 누르면 소리를 끕니다.' : '선체 물살·바람·돛과 목재·입항 알림음';
       button.disabled = !supported;
     });
   } });
