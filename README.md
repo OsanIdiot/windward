@@ -97,5 +97,3 @@ node --test engine.test.cjs navigation.test.cjs
 - [UNESCO: 제노바](https://whc.unesco.org/en/list/1211/): 16세기 후반 해상·금융 도시.
 - [UNESCO: 베네치아](https://whc.unesco.org/en/list/394/): 석호와 해상 교역 도시.
 - [UNESCO: 두브로브니크](https://whc.unesco.org/en/list/95/): 라구사의 해상 교역 역사.
-
-대항해시대 게임의 코드·그림·음악·캐릭터는 포함하지 않습니다.
