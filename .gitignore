@@ -1,0 +1,10 @@
+# Local previews, dependencies, and credentials must not be published.
+*.png
+node_modules/
+_site/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+
