@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
-const files = new Set(['index.html', 'style.css', 'geography.js', 'navigation.js', 'engine.js', 'sea-ui.js', 'app.js']);
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const files = new Set(['index.html', 'style.css', 'geography.js', 'navigation.js', 'engine.js', 'sea-ui.js', 'app.js', 'assets/harbor-town.webp']);
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.webp': 'image/webp' };
 http.createServer((req, res) => {
   let requested;
   try { requested = decodeURIComponent(new URL(req.url, `http://${host}:${port}`).pathname).replace(/^\//, '') || 'index.html'; }

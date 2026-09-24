@@ -1,3 +1,4 @@
+const { closeService, openService } = require('./browser-helpers.cjs');
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -8,23 +9,23 @@ const path = require('node:path');
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().endsWith('favicon.ico'))errors.push(r.status()+' '+r.url());});
   async function saved(){return page.evaluate(()=>JSON.parse(localStorage.getItem(Windward.KEY))||Windward.initial());}
-  async function reset(){await page.locator('#return-menu-button').click();await page.locator('#reset-button').click();await page.locator('#confirm-reset').click();}
+  async function reset(){await closeService(page);await page.locator('#return-menu-button').click();await page.locator('#reset-button').click();await page.locator('#confirm-reset').click();}
   async function clickPoint(point){
     const client=await page.evaluate(p=>{const m=document.getElementById('sea-map').getScreenCTM();const c=new DOMPoint(p.x,p.y).matrixTransform(m);return{x:c.x,y:c.y};},point);
     await page.mouse.click(client.x,client.y);
   }
-  await page.goto('http://127.0.0.1:4173/?v=6');await page.locator('#start-button').click();
+  await page.goto('http://127.0.0.1:4173/?v=7');await page.locator('#start-button').click();
   assert.equal(await page.locator('#chart-screen').isVisible(),false);
   assert.equal(await page.locator('#dock').isVisible(),true);
   await page.screenshot({path:path.join(__dirname,'port-screen-desktop.png'),fullPage:true});
   for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1100});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Port fits '+width);}
   const beforeScreen=await saved();
-  await page.locator('#harbor-button').click();
+  await closeService(page);await page.locator('#harbor-button').click();
   assert.equal(await page.locator('#dock').isVisible(),false);
   assert.equal((await saved()).gold,beforeScreen.gold);assert.equal((await saved()).day,beforeScreen.day);
   await page.locator('#enter-port-button').click();
   assert.equal((await saved()).voyages,0);
-  await page.locator('#harbor-button').click();
+  await closeService(page);await page.locator('#harbor-button').click();
   await page.locator('[data-chart-port="lume"]').waitFor();
   assert.equal(await page.locator('[data-chart-port]').count(),8);
   assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/미확인 항구/);
@@ -47,9 +48,9 @@ const path = require('node:path');
   await page.locator('#rescue-button').click();assert.equal((await saved()).port,null);
   await page.locator('#enter-port-button').click();assert.equal((await saved()).port,'lume');
   await reset();
-  await page.locator('#qty-grain').fill('10');await page.locator('[data-trade="grain"]').click();
+  await openService(page,'market');await page.locator('#qty-grain').fill('10');await page.locator('[data-trade="grain"]').click();
   assert.equal((await saved()).gold,540);
-  await page.locator('#harbor-button').click();
+  await closeService(page);await page.locator('#harbor-button').click();
   const points=await page.evaluate(()=>Windward.N.route(Windward.initial().position,Windward.portOf('cedar')));
   for(const point of points){
     await clickPoint(point);
@@ -64,26 +65,26 @@ const path = require('node:path');
   await page.locator('#enter-port-button').click();
   assert.equal((await saved()).screen,'port');assert.equal((await saved()).port,'cedar');assert.ok((await saved()).visited.includes('cedar'));
   assert.match(await page.locator('#port-name').innerText(),/카디스/);
-  await page.locator('[data-max="grain"]').click();await page.locator('[data-trade="grain"]').click();
+  await openService(page,'market');await page.locator('[data-max="grain"]').click();await page.locator('[data-trade="grain"]').click();
   assert.ok((await saved()).gold>700);
-  await page.locator('#harbor-button').click();
+  await closeService(page);await page.locator('#harbor-button').click();
   assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/카디스/);
   await page.locator('[data-chart-port="lume"]').click();
   assert.equal((await saved()).navigation.mode,'auto');
   await page.waitForFunction(()=>{const s=JSON.parse(localStorage.getItem(Windward.KEY));return !s.navigation&&Windward.nearbyPort(s)?.id==='lume';},null,{timeout:15000});
   assert.equal((await saved()).screen,'chart');assert.equal((await saved()).port,null);
   await page.locator('#enter-port-button').click();
-  await page.locator('#tab-adventure').click();await page.locator('#explore-button').click();
+  await openService(page,'adventure');await page.locator('#explore-button').click();
   assert.match(await page.locator('#discovery-title').innerText(),/벨렝/);await page.locator('#discovery-dialog .primary').click();
-  await page.locator('#tab-contracts').click();await page.locator('#accept-contract-button').click();
-  await page.locator('#tab-market').click();await page.locator('[data-side="buy"]').click();await page.locator('#qty-grain').fill('8');await page.locator('[data-trade="grain"]').click();
-  await page.locator('#harbor-button').click();
+  await openService(page,'contracts');await page.locator('#accept-contract-button').click();
+  await openService(page,'market');await page.locator('[data-side="buy"]').click();await page.locator('#qty-grain').fill('8');await page.locator('[data-trade="grain"]').click();
+  await closeService(page);await page.locator('#harbor-button').click();
   await page.locator('[data-chart-port="cedar"]').click();
   await page.waitForFunction(()=>{const s=JSON.parse(localStorage.getItem(Windward.KEY));return !s.navigation&&Windward.nearbyPort(s)?.id==='cedar';},null,{timeout:15000});
   assert.equal((await saved()).screen,'chart');
   await page.locator('#enter-port-button').click();
-  await page.locator('#deliver-button').click();assert.deepEqual((await saved()).contractsDone,['bread']);
-  await page.locator('#harbor-button').click();
+  await openService(page,'contracts');await page.locator('#deliver-button').click();assert.deepEqual((await saved()).contractsDone,['bread']);
+  await closeService(page);await page.locator('#harbor-button').click();
   await page.locator('#chart-world').click();
   await page.screenshot({path:path.join(__dirname,'chart-screen-desktop.png'),fullPage:true});
   await page.locator('#mode-manual').click();
@@ -103,13 +104,13 @@ const path = require('node:path');
     localStorage.setItem('windward-v1',JSON.stringify(s));sessionStorage.setItem('legacy-migration-test','1');
   });
   await page.reload();await page.locator('#start-button').click();assert.match(await page.locator('#gold').innerText(),/2,345/);assert.equal(await page.locator('#dock').isVisible(),true);
-  await page.locator('#harbor-button').click();assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/카디스/);await page.locator('#enter-port-button').click();
-  await page.locator('#tab-adventure').click();await page.locator('#explore-button').click();await page.locator('#discovery-dialog .primary').click();assert.equal((await saved()).version,4);
+  await closeService(page);await page.locator('#harbor-button').click();assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/카디스/);await page.locator('#enter-port-button').click();
+  await openService(page,'adventure');await page.locator('#explore-button').click();await page.locator('#discovery-dialog .primary').click();assert.equal((await saved()).version,4);
   const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
-  const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));await phone.goto('http://127.0.0.1:4173/?v=6');await phone.locator('#start-button').tap();
+  const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));await phone.goto('http://127.0.0.1:4173/?v=7');await phone.locator('#start-button').tap();
   assert.equal(await phone.locator('#dock').isVisible(),true);
   await phone.screenshot({path:path.join(__dirname,'port-screen-mobile.png'),fullPage:true});
-  for(const id of ['adventure','contracts','ship','market']) await phone.locator('#tab-'+id).tap();
+  for(const id of ['adventure','contracts','ship','market']) { await phone.locator('[data-service="'+id+'"]').tap();await phone.locator('#close-service').tap(); }
   await phone.locator('#harbor-button').tap();
   assert.equal(await phone.locator('#dock').isVisible(),false);
   await phone.locator('[data-chart-port="lume"]').waitFor();

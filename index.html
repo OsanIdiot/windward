@@ -80,31 +80,26 @@
         <aside class="adventure-goal"><div><p class="eyebrow">STORIES BEYOND THE HORIZON</p><h3>돈보다 오래 남는 보물</h3><p>다섯 발견을 기록하고 의뢰 3건을 완수해, 항구들의 이야기를 연결하세요.</p><div class="quest-checks" id="adventure-checks"></div></div><span class="hint">입항 후 탐험 메뉴에서</span></aside>
       </section>
       <section class="dock" id="dock" aria-label="항구 화면">
-        <div class="port-story">
-          <div class="dock-heading"><div><p class="eyebrow">A MOMENT ASHORE / 1550</p><h2 id="port-name" tabindex="-1">리스본 <small>항구</small></h2></div><svg class="icon"><use href="#i-anchor"/></svg></div>
-          <p id="port-subtitle" class="port-subtitle"></p>
-          <svg class="harbor-scene" viewBox="0 0 600 420" role="img" aria-label="범선과 상인들의 부두를 그린 항구 풍경">
-            <defs><pattern id="harbor-water" width="55" height="24" patternUnits="userSpaceOnUse"><path d="M4 10q8-4 16 0t16 0" fill="none" stroke="#6f9992" opacity=".35"/></pattern></defs>
-            <rect width="600" height="420" fill="#dce4d3"/><circle cx="472" cy="83" r="40" fill="#f7ebc5"/>
-            <path d="M0 198Q82 129 160 155T340 140 600 180V270H0Z" fill="#b3c1a4"/>
-            <g fill="#ddd1b0" stroke="#9c9e7f" stroke-width="1.5"><path d="M28 201h83v77H28ZM115 172h61v106h-61ZM182 192h90v86h-90ZM280 160h66v118h-66ZM353 188h72v90h-72ZM435 175h97v103h-97Z"/></g>
-            <g fill="#af795b"><path d="m20 201 49-36 49 36Zm86-29 39-31 38 31Zm70 20 52-34 50 34Zm96-32 41-35 41 35Zm74 28 43-32 43 32Zm82-13 55-35 56 35Z"/></g>
-            <g fill="#728c80"><path d="M47 219h13v20H47Zm33 0h13v20H80Zm56-27h15v23h-15Zm65 21h15v18h-15Zm35 0h15v18h-15Zm61-33h12v21h-12Zm24 0h12v21h-12Zm49 26h13v22h-13Zm26 0h13v22h-13Zm57-11h14v23h-14Zm34 0h14v23h-14Z"/></g>
-            <path d="M12 267h557v30H12Z" fill="#b3a17e"/><path d="M0 295h600v125H0Z" fill="#a9c7bc"/><path d="M0 295h600v125H0Z" fill="url(#harbor-water)"/>
-            <path d="M132 290v80h174v-17H151v-63" fill="#9d8668"/><path d="M153 307h70v12h-70m0 17h70v12h-70" stroke="#786e55" stroke-width="2"/>
-            <g fill="#967c59" stroke="#7e7257"><path d="M37 253h24v24H37Zm30 8h24v20H67Zm424-4h23v25h-23Z"/></g>
-            <path d="M542 272v-150h25v150" fill="#e7dbbc"/><path d="m535 122 20-22 20 22" fill="#ae7156"/><path d="M546 142h16v21h-16Z" fill="#879c87"/>
-            <use href="#ship-art" x="257" y="188" width="254" height="203"/>
-            <path d="M0 407h600" stroke="#e3e8d6" stroke-width="3"/>
-          </svg>
-          <p id="port-description" class="port-description"></p>
-          <div class="port-welcome"><svg class="icon"><use href="#i-anchor"/></svg><p>부두에서 잠시 숨을 고르세요.<br><span>물품을 거래하고, 다음 모험을 준비할 시간입니다.</span></p></div>
+        <div class="harbor-town">
+          <img class="harbor-background" src="assets/harbor-town.webp" width="1536" height="1024" alt="따뜻한 석조 건물과 시장, 조선소, 범선이 있는 지중해 항구의 창작 풍경">
+          <div class="harbor-heading"><p class="eyebrow">A MOMENT ASHORE / 1550</p><h2 id="port-name" tabindex="-1">리스본 <small>항구</small></h2><p id="port-subtitle"></p></div>
+          <nav class="harbor-places" aria-label="항구 시설">
+            <button class="place-button place-market" data-service="market" aria-haspopup="dialog" aria-controls="service-dialog"><svg class="icon"><use href="#i-coin"/></svg><span>교역소<small>물품 사고팔기</small></span></button>
+            <button class="place-button place-adventure" data-service="adventure" aria-haspopup="dialog" aria-controls="service-dialog"><svg class="icon"><use href="#i-compass"/></svg><span>탐험<small>새로운 발견</small></span></button>
+            <button class="place-button place-contracts" data-service="contracts" aria-haspopup="dialog" aria-controls="service-dialog"><svg class="icon"><use href="#i-book"/></svg><span>의뢰<small>상인들의 소식</small></span></button>
+            <button class="place-button place-ship" data-service="ship" aria-haspopup="dialog" aria-controls="service-dialog"><svg class="icon"><use href="#i-ship"/></svg><span>선박<small>조선소 · 선박 교체</small></span></button>
+            <button class="place-button place-log" data-service="log" aria-haspopup="dialog" aria-controls="service-dialog"><svg class="icon"><use href="#i-book"/></svg><span>항해 일지<small>지나온 여정</small></span></button>
+            <button class="place-button place-harbor" id="harbor-button" aria-label="항구: 항해도로 이동"><svg class="icon"><use href="#i-anchor"/></svg><span>항구<small>항해도로 나가기</small></span></button>
+          </nav>
+          <p class="harbor-scene-note">시설 표지를 눌러 항구를 둘러보세요.</p>
         </div>
-        <div class="port-services">
-          <div class="port-menu"><div class="tabs" role="tablist" aria-label="항구 메뉴"><button role="tab" aria-selected="true" aria-controls="dock-content" id="tab-market" data-tab="market">교역소</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-adventure" data-tab="adventure" tabindex="-1">탐험</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-contracts" data-tab="contracts" tabindex="-1">의뢰</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-ship" data-tab="ship" tabindex="-1">선박</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-log" data-tab="log" tabindex="-1">일지</button></div><button id="harbor-button" class="primary" aria-label="항구: 항해도로 이동"><svg class="icon"><use href="#i-ship"/></svg>항구</button></div>
-          <p class="port-menu-hint">항구 버튼을 누르면 항해도로 돌아갑니다.</p>
+        <div class="harbor-caption"><p id="port-description"></p><span>지중해 항구의 창작 풍경</span></div>
+        <dialog id="service-dialog" class="service-dialog" aria-labelledby="service-title">
+          <div class="service-header"><div><p class="eyebrow" id="service-port"></p><h2 id="service-title" tabindex="-1">교역소</h2></div><button id="close-service" class="secondary" data-close="service-dialog">항구 풍경 <span aria-hidden="true">×</span></button></div>
+          <div class="tabs" role="tablist" aria-label="항구 메뉴"><button role="tab" aria-selected="true" aria-controls="dock-content" id="tab-market" data-tab="market">교역소</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-adventure" data-tab="adventure" tabindex="-1">탐험</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-contracts" data-tab="contracts" tabindex="-1">의뢰</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-ship" data-tab="ship" tabindex="-1">선박</button><button role="tab" aria-selected="false" aria-controls="dock-content" id="tab-log" data-tab="log" tabindex="-1">일지</button></div>
+          <div id="service-feedback" class="service-feedback" role="status" hidden></div>
           <div id="dock-content" role="tabpanel" aria-labelledby="tab-market"></div>
-        </div>
+        </dialog>
       </section>
     </div>
   </section>

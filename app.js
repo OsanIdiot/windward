@@ -26,6 +26,11 @@
 
   function toast(message, error = false) {
     clearTimeout(toastTimer);
+    if ($('service-dialog').open) {
+      $('service-feedback').textContent = message;
+      $('service-feedback').classList.toggle('error', error);
+      $('service-feedback').hidden = false;
+    }
     $('toast').textContent = message;
     $('toast').classList.toggle('error', error);
     $('toast').hidden = false;
@@ -141,6 +146,8 @@
     $('port-name').innerHTML = `${E.portOf(state.port).name} <small>항구</small>`;
     $('port-subtitle').textContent = E.portOf(state.port).subtitle;
     $('port-description').textContent = E.portOf(state.port).flavor;
+    $('service-port').textContent = E.portOf(state.port).name + ' · 항구 시설';
+    $('service-title').textContent = { market: '교역소', adventure: '탐험', contracts: '의뢰', ship: '조선소 · 선박', log: '항해 일지' }[tab];
     document.querySelectorAll('[data-tab]').forEach(button => {
       const active = button.dataset.tab === tab;
       button.setAttribute('aria-selected', String(active));
@@ -202,16 +209,25 @@
     if (!button) return;
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
+    if (button.dataset.service) {
+      if (!playing || !state.port || state.screen !== 'port') return;
+      tab = button.dataset.service; renderDock();
+      $('service-feedback').hidden = true;
+      $('service-dialog').showModal(); $('service-dialog').scrollTop = 0;
+      $('service-title').focus({ preventScroll: true }); return;
+    }
     if (button.id === 'start-button') {
       playing = true; save(); render(); focusScreen('game-screen'); return;
     }
     if (button.id === 'return-menu-button') {
+      $('service-dialog').close();
       if (state.navigation?.running) state = E.act(state, { type: 'pause' });
       playing = false; save(); render();
       clearTimeout(toastTimer); $('toast').hidden = true;
       focusScreen('entry-title'); return;
     }
     if (button.id === 'harbor-button') {
+      $('service-dialog').close();
       if (perform({ type: 'show-chart' })) { chart.reset(); focusScreen('chart-heading'); }
       return;
     }
@@ -228,10 +244,10 @@
     if (button.dataset.openTab) {
       if (state.screen !== 'port') return;
       tab = button.dataset.openTab; renderDock();
-      document.querySelector('.dock').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+      $('service-dialog').scrollTop = 0;
       $(`tab-${tab}`).focus({ preventScroll: true }); return;
     }
-    if (button.dataset.tab) { tab = button.dataset.tab; renderDock(); return; }
+    if (button.dataset.tab) { tab = button.dataset.tab; $('service-feedback').hidden = true; renderDock(); return; }
     if (button.dataset.side) { side = button.dataset.side; renderDock(); return; }
     if (button.dataset.step) { const g = button.dataset.good; updateQuantity(g, Number($(`qty-${g}`).value) + Number(button.dataset.step)); return; }
     if (button.dataset.max) { const g = button.dataset.max; updateQuantity(g, maxQuantity(g)); return; }

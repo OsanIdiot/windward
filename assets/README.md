@@ -1,0 +1,10 @@
+# Harbor Background
+
+- Asset: `harbor-town.webp` (1536 x 1024; about 421 KiB).
+- Created with the built-in image generation tool for Windward.
+- Original generated PNG retained locally; the deployed WebP is a format-compressed copy.
+- Shared fictional Mediterranean harbor illustration, not a reconstruction of any particular city. UI names and services are rendered separately in HTML.
+
+## Final Generation Prompt
+
+Use case: historical-scene. Create a NEW original background illustration for Windward, a quiet mobile web sailing/trading game. Asset only, no UI, no text, no icons, no letters, no logos, no watermark. Wide landscape composition, 1536x1024 or similar 3:2. A welcoming 16th-century Mediterranean trading harbor seen from a gently elevated quay: pale limestone town with restrained terracotta roofs in the upper left and center, a small merchant market with canvas awnings and stacked crates at lower left, an explorers' path leading toward green hills in upper center, a modest guild/courier house near center, a wooden shipyard at center right, and a graceful wooden sailing carrack moored at the right foreground. A broad pale stone quay curves along the bottom, calm teal harbor water fills lower right. A few tiny distant merchants and sailors, no closeup faces. Hand-painted gouache and delicate pencil linework on subtly textured cream paper, editorial storybook illustration with believable architectural detail and depth, NOT flat vector art, NOT photorealistic or glossy 3D. Muted sage, sea-glass teal, warm ivory, faded terracotta and natural wood brown; soft late-afternoon haze, peaceful adventure, refined modest detail rather than lavish game graphics. Clear silhouettes, generous breathing room and quiet sky at upper edge for a small port-name overlay. Locations visually spaced for six clickable UI signs that will be implemented separately in HTML. Entire landscape attractive as background even if cropped on mobile. Original architecture and composition, no existing game's artwork or ornate HUD.
