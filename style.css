@@ -101,6 +101,9 @@
 .play-controls{display:flex;align-items:center;justify-content:flex-end;gap:20px;min-height:44px}
 .play-controls>span{margin-right:auto;font-size:10px;color:var(--rust)}
 .play-controls .text-button{font-size:10px;text-decoration:none}
+.support-link{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap;font-size:12px;color:var(--rust);text-decoration:none}.support-link:hover{text-decoration:underline;text-underline-offset:4px}.play-controls .support-link{font-size:10px}
+@media(max-width:740px){.header-right{gap:12px}.header-right .support-link{font-size:11px}}
+@media(max-width:380px){#entry-screen .masthead{flex-wrap:wrap;gap:4px}#entry-screen .header-right{width:100%;justify-content:flex-end}}
 #game-screen{padding-top:8px;padding-bottom:24px;outline:none}
 #game-screen .game-stats{margin-top:0}
 @media(max-width:740px){#entry-screen .masthead{padding:18px 0}.entry-body{display:flex;flex-direction:column;gap:25px;padding:26px 0}.entry-art{width:min(70vw,260px);max-height:235px}.entry-body .intro{text-align:center;width:100%}#entry-screen h1{font-size:30px}#entry-screen .intro-copy{font-size:12px;margin-top:12px}.entry-actions{margin:24px auto 0;max-width:310px}.entry-actions .hint{font-size:10px}.entry-bottom{padding-bottom:max(16px,env(safe-area-inset-bottom));font-size:9px;gap:8px}.entry-bottom #reset-button{font-size:10px}.play-controls{gap:18px}#game-screen{padding-top:0}}
