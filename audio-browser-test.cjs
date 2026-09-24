@@ -5,14 +5,22 @@ const path = require('node:path');
 async function instrument(context) {
   await context.addInitScript(() => {
     const Native = window.AudioContext || window.webkitAudioContext;
-    window.audioProbe = { contexts: [], oscillators: 0, sources: 0, gains: [] };
+    window.audioProbe = { contexts: [], oscillators: 0, sources: 0, gains: [], tones: [] };
     window.AudioContext = class extends Native {
       constructor(...args) {
         super(...args);
         audioProbe.contexts.push(this);
         const gain = this.createGain.bind(this), oscillator = this.createOscillator.bind(this), source = this.createBufferSource.bind(this);
         this.createGain = () => { const node = gain(); audioProbe.gains.push(node); return node; };
-        this.createOscillator = () => { audioProbe.oscillators++; return oscillator(); };
+        this.createOscillator = () => {
+          audioProbe.oscillators++;
+          const node = oscillator(), tone = { ended: false }, start = node.start.bind(node), stop = node.stop.bind(node);
+          audioProbe.tones.push(tone);
+          node.start = when => { tone.start = when; tone.frequency = node.frequency.value; start(when); };
+          node.stop = when => { tone.stop = when; stop(when); };
+          node.addEventListener('ended', () => { tone.ended = true; });
+          return node;
+        };
         this.createBufferSource = () => { audioProbe.sources++; return source(); };
       }
     };
@@ -22,7 +30,7 @@ async function instrument(context) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=14';
+    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=15';
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     await instrument(context);
     const page = await context.newPage(), errors = [];
@@ -66,7 +74,18 @@ async function instrument(context) {
     await page.waitForFunction(() => audioProbe.contexts[0]?.state === 'running');
     await page.locator('#voyage-rescue').click();
     await page.locator('#voyage-enter-port').click();
-    assert.equal(await page.evaluate(() => audioProbe.oscillators), 6, 'Two subtle texture modulators plus four bell partials');
+    assert.equal(await page.evaluate(() => audioProbe.oscillators), 17, 'Two texture modulators plus three five-partial bell strikes');
+    const strikes = await page.evaluate(() => [audioProbe.tones[2], audioProbe.tones[7], audioProbe.tones[12]]);
+    assert.ok(Math.abs(strikes[1].start - strikes[0].start - .3) < .001, 'First two strikes are close together');
+    assert.ok(Math.abs(strikes[2].start - strikes[0].start - .78) < .001, 'Final strike follows a short pause');
+    assert.ok(strikes[2].frequency < strikes[0].frequency, 'Final bell is fuller and lower');
+    assert.ok(strikes[2].stop - strikes[2].start > 3 && strikes[0].stop - strikes[0].start < .7, 'Short-short-long decay');
+    await page.waitForFunction(() => audioProbe.tones.slice(2).every(tone => tone.ended), null, { timeout: 6000 });
+    await page.locator('#harbor-button').click(); await page.locator('#voyage-enter-port').click();
+    await sound.click();
+    await page.waitForFunction(() => audioProbe.contexts[0].state === 'suspended');
+    await sound.click();
+    await page.waitForFunction(() => audioProbe.contexts[0].state === 'running' && audioProbe.tones.slice(2).every(tone => tone.ended));
     await page.waitForFunction(() => audioProbe.gains[3].gain.value < .01 && audioProbe.gains[6].gain.value < .01);
     await page.locator('#harbor-button').click();
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });

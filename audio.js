@@ -142,17 +142,23 @@
     }
     function arrival() {
       if (!enabled || !scene.active || !context || context.state !== 'running') return;
+      stopBells();
       const now = context.currentTime;
-      for (const [offset, frequency] of [[0, 523.25], [.22, 783.99]]) {
-        for (const [ratio, volume] of [[1, .14], [2.01, .035]]) {
+      // Two short strikes, then a fuller, lower bell with a long metallic decay.
+      const strikes = [[0, 660, .55, .85], [.3, 660, .55, .9], [.78, 554.37, 3.2, 1]];
+      const partials = [[1, .14], [2.01, .055], [2.76, .03], [4.07, .015], [5.43, .006]];
+      for (const [offset, frequency, duration, strength] of strikes) {
+        for (const [ratio, volume] of partials) {
           const note = context.createOscillator(), gain = context.createGain();
+          const decay = duration / (1 + (ratio - 1) * .3);
           note.frequency.value = frequency * ratio;
           gain.gain.setValueAtTime(0, now + offset);
-          gain.gain.linearRampToValueAtTime(volume, now + offset + .012);
-          gain.gain.exponentialRampToValueAtTime(.0001, now + offset + 1.6);
+          gain.gain.linearRampToValueAtTime(volume * strength, now + offset + .008);
+          gain.gain.exponentialRampToValueAtTime(.0001, now + offset + decay);
+          gain.gain.linearRampToValueAtTime(0, now + offset + decay + .03);
           note.connect(gain); gain.connect(master); bells.add(note);
           note.onended = () => { note.disconnect(); gain.disconnect(); bells.delete(note); };
-          note.start(now + offset); note.stop(now + offset + 1.65);
+          note.start(now + offset); note.stop(now + offset + decay + .04);
         }
       }
     }
