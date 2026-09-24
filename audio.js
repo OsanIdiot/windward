@@ -154,6 +154,7 @@
       fade(wind.gain, scene.sea ? .4 + .6 * speed : 0, 1.5);
       fade(rigging.gain, scene.sea ? .35 * speed : 0, .7);
       if (!scene.sea) stopGulls();
+      else stopBells();
       if (context.state !== 'running' && !resuming) {
         resuming = true;
         context.resume().then(() => {
@@ -186,14 +187,15 @@
       if (!enabled || !scene.active || !context || context.state !== 'running') return;
       stopBells();
       const now = context.currentTime;
-      // Two short strikes, then a fuller, lower bell with a long metallic decay.
-      const strikes = [[0, 660, .55, .85], [.3, 660, .55, .9], [.78, 554.37, 3.2, 1]];
-      const partials = [[1, .14], [2.01, .055], [2.76, .03], [4.07, .015], [5.43, .006]];
-      for (const [offset, frequency, duration, strength] of strikes) {
-        for (const [ratio, volume] of partials) {
+      // Inharmonic resonances give a bright metal bell, not a musical chime.
+      // These are synthesized oscillators; no samples from the reference recording.
+      const strikes = [[0, .85, .65], [.4, .9, .7], [.82, 1, 1]];
+      const partials = [[1215, .022, 2.7], [1280, .04, 2.4], [1640, .115, 3.7], [2050, .11, 3.1], [2580, .035, 2.2], [3080, .07, 2.5], [3210, .027, 1.7], [4260, .045, 1.4]];
+      for (const [offset, strength, tail] of strikes) {
+        for (const [frequency, volume, duration] of partials) {
           const note = context.createOscillator(), gain = context.createGain();
-          const decay = duration / (1 + (ratio - 1) * .3);
-          note.frequency.value = frequency * ratio;
+          const decay = duration * tail;
+          note.frequency.value = frequency;
           gain.gain.setValueAtTime(0, now + offset);
           gain.gain.linearRampToValueAtTime(volume * strength, now + offset + .008);
           gain.gain.exponentialRampToValueAtTime(.0001, now + offset + decay);

@@ -37,7 +37,7 @@ async function instrument(context) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=16';
+    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=17';
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     await instrument(context);
     const page = await context.newPage(), errors = [];
@@ -82,18 +82,25 @@ async function instrument(context) {
     await page.waitForFunction(() => audioProbe.contexts[0]?.state === 'running');
     await page.locator('#voyage-rescue').click();
     await page.locator('#voyage-enter-port').click();
-    assert.equal(await page.evaluate(() => audioProbe.oscillators), 17, 'Two texture modulators plus three five-partial bell strikes');
-    const strikes = await page.evaluate(() => [audioProbe.tones[2], audioProbe.tones[7], audioProbe.tones[12]]);
-    assert.ok(Math.abs(strikes[1].start - strikes[0].start - .3) < .001, 'First two strikes are close together');
-    assert.ok(Math.abs(strikes[2].start - strikes[0].start - .78) < .001, 'Final strike follows a short pause');
-    assert.ok(strikes[2].frequency < strikes[0].frequency, 'Final bell is fuller and lower');
-    assert.ok(strikes[2].stop - strikes[2].start > 3 && strikes[0].stop - strikes[0].start < .7, 'Short-short-long decay');
+    assert.equal(await page.evaluate(() => audioProbe.oscillators), 26, 'Two modulators plus three eight-partial synthesized bell strikes');
+    const strikes = await page.evaluate(() => [audioProbe.tones[4], audioProbe.tones[12], audioProbe.tones[20]]);
+    assert.ok(Math.abs(strikes[1].start - strikes[0].start - .4) < .001, 'First gap is shortened to .40 seconds versus the reference');
+    assert.ok(Math.abs(strikes[2].start - strikes[1].start - .42) < .001, 'Second gap is shortened to .42 seconds');
+    assert.ok(strikes.every(tone => tone.frequency === 1640), 'Bright metal resonance keeps the same pitch across strikes');
+    assert.ok(strikes[2].stop - strikes[2].start > 3.7, 'Final bell retains a long decay');
+    assert.ok(strikes[0].stop - strikes[0].start < strikes[2].stop - strikes[2].start, 'First strikes decay sooner');
+    assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop).length), 0, 'Bell contains no recorded sample');
     await page.waitForFunction(() => audioProbe.tones.slice(2).every(tone => tone.ended), null, { timeout: 6000 });
     await page.locator('#harbor-button').click(); await page.locator('#voyage-enter-port').click();
     await sound.click();
     await page.waitForFunction(() => audioProbe.contexts[0].state === 'suspended');
     await sound.click();
     await page.waitForFunction(() => audioProbe.contexts[0].state === 'running' && audioProbe.tones.slice(2).every(tone => tone.ended));
+    await page.locator('#harbor-button').click(); await page.locator('#voyage-enter-port').click();
+    await page.locator('#harbor-button').click();
+    await page.waitForFunction(() => audioProbe.tones.slice(2).every(tone => tone.ended));
+    await page.locator('#voyage-enter-port').click();
+    await page.waitForFunction(() => audioProbe.tones.slice(2).every(tone => tone.ended), null, { timeout: 6000 });
     await page.waitForFunction(() => audioProbe.gains[3].gain.value < .01 && audioProbe.gains[6].gain.value < .01);
     assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop).length), 0, 'Gulls do not sound inside port');
     await page.locator('#harbor-button').click();
