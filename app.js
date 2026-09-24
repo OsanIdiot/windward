@@ -186,7 +186,7 @@
     syncSound();
   }
   function syncSound() {
-    sound?.update({ active: playing && !document.hidden, sea: state.screen === 'chart', moving: !!state.navigation?.running, speed: state.navigation?.running ? state.motion?.speed ?? 1 : 0 });
+    sound?.update({ active: playing && !document.hidden, sea: state.screen === 'chart', moving: !!state.navigation?.running, speed: state.navigation?.running ? state.motion?.speed ?? 1 : 0, turning: !!state.motion?.turning });
   }
   function focusScreen(id) {
     $(id).focus({ preventScroll: true });

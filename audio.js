@@ -7,6 +7,9 @@
     let scene = { active: false, sea: false, moving: false }, signature = '', resuming = false;
     const bells = new Set();
     const gulls = new Set();
+    const creaks = new Set();
+    const creakBuffers = [];
+    let nextCreakAt = 0;
     let gullBuffer, nextGullAt = 0;
     try { enabled = localStorage.getItem(key) !== 'off'; } catch (_) {}
 
@@ -114,6 +117,57 @@
       if (!nextGullAt) nextGullAt = now + 10 + Math.random() * 6;
       else if (now >= nextGullAt) { callGull(); nextGullAt = now + 22 + Math.random() * 18; }
     }
+    function creakBuffer(variant) {
+      if (creakBuffers[variant]) return creakBuffers[variant];
+      const rate = context.sampleRate, buffer = context.createBuffer(1, Math.ceil(rate * 1.25), rate);
+      const data = buffer.getChannelData(0);
+      // Uneven stick-slip pulses and pitch bends suggest loaded timber and rope.
+      for (const [start, duration, pitch] of [[0, .48, 260], [.59, .58, 315]]) {
+        let phase = 0, friction = 0;
+        for (let i = 0; i < duration * rate; i++) {
+          const t = i / rate, u = t / duration;
+          const envelope = Math.sin(Math.PI * u) ** 1.2;
+          const bend = 1 + .22 * Math.sin(Math.PI * u) - .15 * u;
+          phase += 2 * Math.PI * (pitch + variant * 23) * bend * (1 + .012 * Math.sin(t * 93)) / rate;
+          friction = .68 * friction + .32 * (Math.random() * 2 - 1);
+          const stickSlip = .5 + .5 * Math.sin(t * (85 + variant * 11) + 1.4 * Math.sin(t * 23)) ** 2;
+          data[Math.floor(start * rate) + i] += envelope * stickSlip * (
+            .3 * Math.sin(phase) + .14 * Math.sin(phase * 2) + .09 * Math.sin(phase * 3.03) + .09 * friction);
+        }
+      }
+      creakBuffers[variant] = buffer;
+      return buffer;
+    }
+    function stopCreaks(immediate = true) {
+      if (immediate) nextCreakAt = 0;
+      for (const voice of creaks) {
+        if (!immediate && voice.stopping) continue;
+        voice.stopping = true;
+        const now = context.currentTime;
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(immediate ? 0 : voice.gain.gain.value, now);
+        if (!immediate) voice.gain.gain.linearRampToValueAtTime(0, now + .16);
+        try { voice.source.stop(immediate ? now : now + .17); } catch (_) {}
+      }
+    }
+    function updateCreaks() {
+      if (!enabled || !scene.active || !scene.sea || !scene.moving || !scene.turning || scene.speed < .08 || !context || context.state !== 'running') return;
+      const now = context.currentTime;
+      if (now < nextCreakAt || creaks.size) return;
+      nextCreakAt = now + 1.7 + Math.random() * .6;
+      const source = context.createBufferSource(), gain = context.createGain();
+      const pan = context.createStereoPanner ? context.createStereoPanner() : null;
+      source.buffer = creakBuffer(Math.floor(Math.random() * 3));
+      source.playbackRate.value = .94 + Math.random() * .12;
+      gain.gain.value = .16 + scene.speed * .14;
+      source.connect(gain);
+      if (pan) { pan.pan.value = Math.random() * .4 - .2; gain.connect(pan); pan.connect(master); }
+      else gain.connect(master);
+      const voice = { source, gain, stopping: false };
+      creaks.add(voice);
+      source.onended = () => { source.disconnect(); gain.disconnect(); pan?.disconnect(); creaks.delete(voice); };
+      source.start();
+    }
     function initialize() {
       if (context || failed) return;
       try {
@@ -142,7 +196,7 @@
       if (!enabled || !scene.active) {
         // Stop immediately on mute/background; never let a delayed resume leak sound.
         master.gain.cancelScheduledValues(context.currentTime); master.gain.setValueAtTime(0, context.currentTime);
-        stopBells(); stopGulls();
+        stopBells(); stopGulls(); stopCreaks();
         if (context.state === 'running') context.suspend().then(() => {
           if (enabled && scene.active) sync();
         }).catch(() => {});
@@ -155,6 +209,8 @@
       fade(rigging.gain, scene.sea ? .35 * speed : 0, .7);
       if (!scene.sea) stopGulls();
       else stopBells();
+      if (!scene.sea || !scene.moving) stopCreaks();
+      else if (!scene.turning) stopCreaks(false);
       if (context.state !== 'running' && !resuming) {
         resuming = true;
         context.resume().then(() => {
@@ -167,10 +223,11 @@
     }
     function update(next) {
       const speed = Number.isFinite(next.speed) ? Math.round(Math.max(0, Math.min(1, next.speed)) * 10) / 10 : next.moving ? 1 : 0;
-      const nextSignature = `${next.active}/${next.sea}/${next.moving}/${speed}`;
+      const nextSignature = `${next.active}/${next.sea}/${next.moving}/${speed}/${!!next.turning}`;
       scene = { ...next, speed };
       if (signature !== nextSignature) { signature = nextSignature; sync(); }
       updateGulls();
+      updateCreaks();
     }
     function unlock() {
       if (!enabled || failed) return;
