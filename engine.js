@@ -112,8 +112,12 @@
       const progress = state.seaProgress + step / (55 * SHIPS[state.ship].speed);
       const days = Math.floor(progress + 1e-9), cost = days * (state.discoveries.includes('tide') ? 7 : 8);
       if (state.gold < cost) { nav.running = false; stopMotion(state); return finish(state, '항해 경비가 부족해 정지했습니다. 가까운 항구로 이동하거나 귀환 지원을 요청하세요.'); }
+      // Stop on entering a port's arrival zone, not on every step while leaving it.
+      // Explicit port targets still stop even when already inside the zone.
+      const arrival = PORTS.find(p => (nav.mode === 'manual' || nav.targetPort === p.id)
+        && (N.distance(state.position, p) >= 5 || nav.targetPort === p.id || N.distance(target, p) < 2)
+        && N.distance(next, p) < 5 && N.clear(next, p));
       state.gold -= cost; state.day += days; state.seaProgress = Math.max(0, progress - days); state.position = next;
-      const arrival = PORTS.find(p => (nav.mode === 'manual' || nav.targetPort === p.id) && (p.id !== state.lastPort || nav.targetPort === p.id || N.distance(target, p) < 2) && N.distance(next, p) < 5 && N.clear(next, p));
       if (arrival) {
         state.navigation = null; stopMotion(state);
         return finish(state, `${portLabel(state, arrival.id)} 근처에 도착했습니다. 입항 버튼을 눌러 항구로 들어가세요.`);

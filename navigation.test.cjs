@@ -115,6 +115,60 @@ function visit(s,id) {
   s=E.act(approach(s,id),{type:'enter-port'});
   assert.equal(s.port,id);return s;
 }
+
+function waitingAt(id='cedar',ship=0,mode='auto') {
+  const s=chart();s.ship=ship;
+  if(mode==='manual')return approach(s,id);
+  s.visited.push(id);
+  return run(E.act(s,{type:'navigate',mode:'auto',destination:id}));
+}
+function escapeFrom(s) {
+  const port=E.nearbyPort(s);
+  for(let heading=0;heading<360;heading+=15) {
+    const point=N.headingTarget(s.position,heading,40);
+    if(N.distance(s.position,point)>30&&N.distance(point,port)>30)return {heading,point};
+  }
+  throw Error('No open-water test heading');
+}
+test('arrived ships can leave every automatic destination without entering port',()=>{
+  for(const port of E.PORTS.slice(1))for(const ship of [0,6]) {
+    const waiting=waitingAt(port.id,ship),{heading,point}=escapeFrom(waiting);
+    assert.equal(waiting.port,null);assert.equal(E.nearbyPort(waiting).id,port.id);
+    for(const action of [{type:'steer',heading},{type:'navigate',mode:'manual',point}]) {
+      const first=E.advance(E.act(waiting,action),.2);
+      assert.ok(first.navigation?.running,`${port.id}, ship ${ship}: no repeated arrival stop`);
+      assert.ok(first.motion.speed>0);
+      const departed=run(first);
+      assert.ok(N.distance(departed.position,port)>6);
+      assert.equal(departed.port,null);assert.equal(departed.lastPort,waiting.lastPort);
+      assert.equal(departed.voyages,waiting.voyages);assert.deepEqual(departed.visited,waiting.visited);
+      assert.ok(E.valid(departed));
+    }
+  }
+});
+test('departure survives pause, reload and steering changes within the arrival radius',()=>{
+  const waiting=waitingAt(),{heading,point}=escapeFrom(waiting);
+  let s=E.advance(E.act(waiting,{type:'steer',heading}),.1);
+  assert.ok(E.nearbyPort(s));
+  s=E.act(s,{type:'pause'});
+  s=E.act(E.migrate(JSON.parse(JSON.stringify(s))),{type:'resume'});
+  s=E.advance(s,.1);assert.ok(s.navigation?.running);
+  s=E.act(s,{type:'navigate',mode:'manual',point});
+  assert.ok(E.advance(s,.1).navigation?.running);
+  assert.ok(N.distance(run(s).position,E.portOf('cedar'))>6);
+});
+test('unvisited arrival can be bypassed and returning still stops for explicit port entry',()=>{
+  const waiting=waitingAt('cedar',0,'manual'),{point}=escapeFrom(waiting);
+  const away=run(E.act(waiting,{type:'navigate',mode:'manual',point}));
+  assert.ok(N.distance(away.position,E.portOf('cedar'))>6);
+  assert.equal(away.visited.includes('cedar'),false);
+  const back=approach(away,'cedar');
+  assert.equal(E.nearbyPort(back).id,'cedar');assert.equal(back.navigation,null);
+  assert.equal(back.port,null);assert.equal(back.visited.includes('cedar'),false);
+  assert.equal(E.act(back,{type:'enter-port'}).port,'cedar');
+  const retry=run(E.act(back,{type:'navigate',mode:'manual',point:E.portOf('cedar')}));
+  assert.equal(E.nearbyPort(retry).id,'cedar');assert.equal(retry.navigation,null);
+});
 test('real geography distinguishes Iberian land from open Atlantic water',()=>{
   assert.equal(N.isSea(N.project(-3.7,40.4)),false);
   assert.equal(N.isSea(N.project(-11,36)),true);

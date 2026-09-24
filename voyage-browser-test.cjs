@@ -28,7 +28,7 @@ const { openChart } = require('./browser-helpers.cjs');
     const box=await page.locator('#voyage-canvas').boundingBox();
     await page.mouse.click(box.x+box.width*.28,box.y+box.height*.58);
     await page.waitForFunction(()=>JSON.parse(localStorage.getItem(Windward.KEY)).navigation?.running);
-    await page.waitForFunction(p=>Math.hypot(JSON.parse(localStorage.getItem(Windward.KEY)).position.x-p.x,JSON.parse(localStorage.getItem(Windward.KEY)).position.y-p.y)>3,origin);
+    await page.waitForFunction(p=>Math.hypot(JSON.parse(localStorage.getItem(Windward.KEY)).position.x-p.x,JSON.parse(localStorage.getItem(Windward.KEY)).position.y-p.y)>8,origin);
     await page.locator('#voyage-pause').click();
     let s=await saved();assert.equal(s.navigation.running,false);assert.equal(s.port,null);
     await page.screenshot({path:path.join(__dirname,'voyage-underway.png'),fullPage:true});
