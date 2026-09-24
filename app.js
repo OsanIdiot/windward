@@ -10,6 +10,8 @@
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, sound, seaView = 'sea';
   let previousFrame = 0, lastSave = 0;
+  let chartReturnAt = 0;
+  const chartPointers = new Set();
   let playing = false, hasVoyage = false;
   let storageOK = true, storageMessage = '';
   const quantities = Object.fromEntries(E.GOODS.map(g => [g.id, 1]));
@@ -47,7 +49,9 @@
       const wonBefore = state.won;
       const adventureBefore = state.adventureWon;
       state = E.act(state, action);
-      save(); render();
+      save();
+      if (action.type === 'resume' && seaView === 'map' && state.navigation?.running) showVoyage();
+      else render();
       if (!['show-chart', 'enter-port'].includes(action.type)) toast(!adventureBefore && state.adventureWon ? '모험 목표 달성! 지중해의 모든 발견을 기록했습니다.' : !wonBefore && state.won ? '목표 달성! 지중해가 인정하는 무역상이 되었습니다.' : state.log[0]);
       return true;
     } catch (error) { toast(error.message, true); return false; }
@@ -170,6 +174,7 @@
     $('adventure-checks').innerHTML = `<span class="${state.discoveries.length === 5 ? 'complete' : ''}">발견 ${state.discoveries.length}/5</span><span class="${state.contractsDone.length >= 3 ? 'complete' : ''}">의뢰 ${state.contractsDone.length}/3</span><span>명성 ${state.reputation}</span>${state.adventureWon ? '<span class="complete">모험 목표 달성</span>' : ''}`;
   }
   function render() {
+    if (!playing || state.screen !== 'chart' || seaView !== 'map' || !state.navigation?.running) cancelChartPeek();
     $('entry-screen').hidden = playing;
     $('game-screen').hidden = !playing;
     $('chart-screen').hidden = !playing || state.screen !== 'chart' || seaView !== 'map';
@@ -187,10 +192,32 @@
     $(id).focus({ preventScroll: true });
     $(id).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }
+  function cancelChartPeek() {
+    chartReturnAt = 0;
+    $('chart-peek-note').hidden = true;
+  }
+  function showVoyage() {
+    cancelChartPeek(); chartPointers.clear();
+    seaView = 'sea'; render(); focusScreen('voyage-heading');
+  }
+  function updateChartPeek(stamp) {
+    if (!chartReturnAt) return;
+    if (!playing || document.hidden || state.screen !== 'chart' || seaView !== 'map' || !state.navigation?.running) { cancelChartPeek(); return; }
+    // Let a map gesture or help dialog finish before counting down again.
+    if (chartPointers.size || document.querySelector('dialog[open]')) chartReturnAt = stamp + 3000;
+    const remaining = Math.max(0, Math.ceil((chartReturnAt - stamp) / 1000));
+    $('chart-peek-note').hidden = false;
+    const note = `항해 중 · ${remaining}초 뒤 배로 복귀 · 정지하면 해도 유지`;
+    if ($('chart-peek-note').textContent !== note) $('chart-peek-note').textContent = note;
+    if (stamp >= chartReturnAt) showVoyage();
+  }
   function navigate(action) {
     try {
       state = E.act(state, { type: 'navigate', ...action });
-      save(); render(); return true;
+      save();
+      if (seaView === 'map' && state.navigation?.running) showVoyage();
+      else render();
+      return true;
     } catch (error) { toast(error.message, true); return false; }
   }
   function steer(heading) {
@@ -212,6 +239,7 @@
       } else if (stamp - lastSave > 700) { save(); lastSave = stamp; }
     }
     voyage?.render(stamp);
+    updateChartPeek(stamp);
     syncSound();
     requestAnimationFrame(frame);
   }
@@ -247,10 +275,12 @@
       return;
     }
     if (button.id === 'open-chart-button' || button.id === 'mini-chart-button') {
-      seaView = 'map'; render(); chart.reset(); focusScreen('chart-heading'); return;
+      seaView = 'map'; chartPointers.clear();
+      chartReturnAt = state.navigation?.running ? performance.now() + 3000 : 0;
+      render(); chart.reset(); updateChartPeek(performance.now()); focusScreen('chart-heading'); return;
     }
     if (button.id === 'return-sea-button') {
-      seaView = 'sea'; render(); focusScreen('voyage-heading'); return;
+      showVoyage(); return;
     }
     if (button.id === 'enter-port-button' || button.id === 'voyage-enter-port') {
       const arrived = !state.port;
@@ -338,7 +368,16 @@
   } });
   document.addEventListener('pointerdown', () => { if (playing) sound.unlock(); });
   document.addEventListener('keydown', () => { if (playing) sound.unlock(); });
+  $('chart-screen').addEventListener('pointerdown', event => { if (chartReturnAt) chartPointers.add(event.pointerId); });
+  const releaseChartPointer = event => {
+    if (chartPointers.delete(event.pointerId) && chartReturnAt) chartReturnAt = performance.now() + 3000;
+  };
+  document.addEventListener('pointerup', releaseChartPointer);
+  document.addEventListener('pointercancel', releaseChartPointer);
+  $('chart-screen').addEventListener('wheel', () => { if (chartReturnAt) chartReturnAt = performance.now() + 3000; }, { passive: true });
+  $('chart-screen').addEventListener('keydown', () => { if (chartReturnAt) chartReturnAt = performance.now() + 3000; });
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelChartPeek(); chartPointers.clear(); }
     if (document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
     syncSound();
   });

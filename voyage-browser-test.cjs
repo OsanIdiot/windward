@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { openChart } = require('./browser-helpers.cjs');
 
 (async()=>{
   const browser=await chromium.launch({channel:'msedge',headless:true});
@@ -48,18 +49,19 @@ const path = require('node:path');
     await page.locator('#harbor-button').click();await page.locator('#open-chart-button').click();
     const points=await page.evaluate(()=>Windward.N.route(Windward.initial().position,Windward.portOf('cedar')));
     for(const p of points){
+      await openChart(page);
       const c=await page.evaluate(p=>{const c=new DOMPoint(p.x,p.y).matrixTransform(document.getElementById('sea-map').getScreenCTM());return{x:c.x,y:c.y};},p);
       await page.mouse.click(c.x,c.y);
       await page.waitForFunction(p=>{const s=JSON.parse(localStorage.getItem(Windward.KEY));return !s.navigation&&Math.hypot(s.position.x-p.x,s.position.y-p.y)<6;},p,{timeout:15000});
     }
-    await page.locator('#return-sea-button').click();
+    assert.equal(await page.locator('#voyage-screen').isVisible(),true);
     assert.equal((await saved()).visited.includes('cedar'),false);
     assert.match(await page.locator('#voyage-arrival').innerText(),/미확인 항구/);
     assert.equal((await page.locator('#voyage-screen').innerText()).includes('카디스'),false);
     await page.locator('#voyage-enter-port').click();assert.equal((await saved()).port,'cedar');
     await page.locator('#harbor-button').click();await page.locator('#open-chart-button').click();
     await page.locator('[data-chart-port="lume"]').click();
-    await page.locator('#return-sea-button').click();assert.equal((await saved()).navigation.mode,'auto');
+    assert.equal(await page.locator('#voyage-screen').isVisible(),true);assert.equal((await saved()).navigation.mode,'auto');
     await page.locator('#voyage-pause').click();
     assert.equal((await saved()).navigation.running,false);
     for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Fits ${width}`);}

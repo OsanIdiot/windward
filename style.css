@@ -115,6 +115,8 @@
 .play-controls{display:flex;align-items:center;justify-content:flex-end;gap:20px;min-height:44px}
 .play-controls>span{margin-right:auto;font-size:10px;color:var(--rust)}
 .play-controls .text-button{font-size:10px;text-decoration:none}
+#chart-peek-note{margin:0 0 12px;color:var(--teal);line-height:1.7}
+@media(prefers-reduced-motion:no-preference){#voyage-screen:not([hidden]) .voyage-stage,#chart-screen:not([hidden]) .chart{animation:sea-view-reveal .24s ease-out}@keyframes sea-view-reveal{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}}
 .entry-actions [data-sound]{display:block;margin:4px auto;text-decoration:none}
 @media(max-width:740px){.play-controls{flex-wrap:wrap;column-gap:12px;row-gap:0}.play-controls>span:empty{display:none}}
 @media(max-width:740px){.header-right{gap:12px}}

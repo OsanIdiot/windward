@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=11" defer></script>
   <script src="sea-ui.js" defer></script>
   <script src="voyage-ui.js?v=11" defer></script>
   <script src="audio.js?v=12" defer></script>
-  <script src="app.js?v=12" defer></script>
+  <script src="app.js?v=13" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -80,6 +80,7 @@
       </section>
       <section class="chart-section" id="chart-screen" aria-label="항해 지도" hidden>
         <div class="section-heading"><h2 id="chart-heading" tabindex="-1"><svg class="icon"><use href="#i-compass"/></svg> 항해도</h2><button id="return-sea-button" class="secondary">배로 돌아가기 <svg class="icon"><use href="#i-ship"/></svg></button></div>
+        <p id="chart-peek-note" class="hint" hidden></p>
         <div class="chart" id="chart">
           <div class="chart-note">유럽 · 지중해 항해도<small>PORTS c.1550 / MODERN COASTLINE</small></div>
           <svg id="sea-map" viewBox="0 0 1440 725" role="img" aria-label="1550년경 유럽과 지중해 항해도. 바다를 클릭하거나 터치해 수동항해합니다."><defs><pattern id="ocean-lines" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M60 0H0v60" fill="none" stroke="#779b95" stroke-width=".4" opacity=".5"/></pattern></defs><rect width="1440" height="725" fill="#bad3ca"/><rect width="1440" height="725" fill="url(#ocean-lines)"/><g id="real-land"></g><g id="geographic-labels"></g><path id="route-line" fill="none" stroke="#a96143" stroke-width="2" stroke-dasharray="6 7" vector-effect="non-scaling-stroke"/><g id="map-markers"></g><g id="map-ship" pointer-events="none"><use href="#ship-art" width="58" height="47" x="-29" y="-37"/></g><circle id="target-ring" r="6" fill="none" stroke="#a96143" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" hidden/></svg>
@@ -121,7 +122,7 @@
   </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="안내 닫기">×</button><p class="eyebrow">THE MEDITERRANEAN, c.1550</p><h2>이름 없는 항구를 찾아서.</h2><p>리스본 항구 화면에서 시작합니다. 항구 버튼으로 바다에 나가세요. 다른 항구는 입항 버튼을 누르기 전까지 '미확인 항구'로 표시됩니다.</p><ol><li><strong>배 주변의 바다를 눌러 조타하세요.</strong><br>누른 방향으로 계속 항해합니다. 다시 누르면 방향을 바꾸고, 해안·해역 경계·예산 한계 앞에서는 정지합니다. '정지'와 '계속'으로 항해를 조절하세요.</li><li><strong>길을 살필 때는 해도를 펼치세요.</strong><br>'해도 열기' 또는 작은 지도를 누르면 기존 항해도가 열립니다. 해도에서는 누른 바다 지점까지만 이동합니다. 육지에 막히면 중간 지점을 정해 우회하세요. '배로 돌아가기'를 눌러도 위치와 항로는 유지됩니다.</li><li><strong>미확인 항구에 접근해 입항하세요.</strong><br>가까운 항구가 항해 화면에 표시됩니다. 접근한 뒤 정지 상태에서 '입항'을 누르면 이름이 공개되고 항구 화면이 열립니다. 방문한 항구는 클릭 한 번으로 해안을 우회해 자동항해합니다.</li><li><strong>항구에서 다음 항해를 준비하세요.</strong><br>교역소·탐험·의뢰·선박을 이용하고 항구 버튼을 눌러 바다로 돌아갑니다. 화면 전환은 무료이며 실제 항해 거리에 따라 날짜와 경비가 진행됩니다. 해류 지도는 경비를 줄여줍니다.</li></ol><p class="hint">항해 화면에 초점을 두면 방향키로 조타, 스페이스로 정지·계속할 수 있습니다. 해도는 드래그로 이동하고 +/− 또는 두 손가락으로 확대합니다.<br>새로고침하거나 화면을 벗어나면 항해가 정지된 상태로 저장됩니다. '계속'을 눌러 재개하세요.<br>항구는 1550년경의 실제 도시, 해안선은 현대 지형을 단순화했습니다. 의뢰·모험·시세는 게임용 창작입니다.</p><button class="primary" data-close="help-dialog">나의 첫 항로 그리기</button></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="안내 닫기">×</button><p class="eyebrow">THE MEDITERRANEAN, c.1550</p><h2>이름 없는 항구를 찾아서.</h2><p>리스본 항구 화면에서 시작합니다. 항구 버튼으로 바다에 나가세요. 다른 항구는 입항 버튼을 누르기 전까지 '미확인 항구'로 표시됩니다.</p><ol><li><strong>배 주변의 바다를 눌러 조타하세요.</strong><br>누른 방향으로 계속 항해합니다. 다시 누르면 방향을 바꾸고, 해안·해역 경계·예산 한계 앞에서는 정지합니다. '정지'와 '계속'으로 항해를 조절하세요.</li><li><strong>길을 살필 때는 해도를 펼치세요.</strong><br>해도에서 항로를 정하거나 '계속'을 누르면 항해 화면으로 전환합니다. 이동 중 '해도 열기'나 작은 지도를 누르면 약 3초간 해도를 확인하고 자동으로 돌아갑니다. 드래그·확대 조작을 마치면 3초를 다시 셉니다. 정지 중에는 시간제한이 없습니다. 해도의 수동항해는 누른 바다 지점까지만 이동하며, 육지는 중간 지점을 정해 우회하세요.</li><li><strong>미확인 항구에 접근해 입항하세요.</strong><br>가까운 항구가 항해 화면에 표시됩니다. 접근한 뒤 정지 상태에서 '입항'을 누르면 이름이 공개되고 항구 화면이 열립니다. 방문한 항구는 클릭 한 번으로 해안을 우회해 자동항해합니다.</li><li><strong>항구에서 다음 항해를 준비하세요.</strong><br>교역소·탐험·의뢰·선박을 이용하고 항구 버튼을 눌러 바다로 돌아갑니다. 화면 전환은 무료이며 실제 항해 거리에 따라 날짜와 경비가 진행됩니다. 해류 지도는 경비를 줄여줍니다.</li></ol><p class="hint">항해 화면에 초점을 두면 방향키로 조타, 스페이스로 정지·계속할 수 있습니다. 해도는 드래그로 이동하고 +/− 또는 두 손가락으로 확대합니다.<br>새로고침하거나 화면을 벗어나면 항해가 정지된 상태로 저장됩니다. '계속'을 눌러 재개하세요.<br>항구는 1550년경의 실제 도시, 해안선은 현대 지형을 단순화했습니다. 의뢰·모험·시세는 게임용 창작입니다.</p><button class="primary" data-close="help-dialog">나의 첫 항로 그리기</button></dialog>
   <dialog id="discovery-dialog" aria-labelledby="discovery-title"><button class="dialog-close" data-close="discovery-dialog" aria-label="발견 기록 닫기">×</button><p class="eyebrow">A NEW PAGE IN YOUR ATLAS</p><div id="discovery-art"></div><h2 id="discovery-title"></h2><p id="discovery-story"></p><p id="discovery-benefit" class="market-tip"></p><p id="discovery-reward" class="hint"></p><button class="primary" data-close="discovery-dialog">발견 도감에 기록했습니다</button></dialog>
   <dialog id="reset-dialog"><p class="eyebrow">A NEW BEGINNING</p><h2>새 항해를 시작할까요?</h2><p>이 브라우저에 저장된 현재 항해 기록이 삭제됩니다.</p><div class="dialog-actions"><button class="secondary" data-close="reset-dialog">계속 항해하기</button><button class="primary" id="confirm-reset">처음부터 시작</button></div></dialog>
   <noscript>이 게임을 실행하려면 브라우저에서 JavaScript를 활성화해 주세요.</noscript>
