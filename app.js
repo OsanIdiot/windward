@@ -207,6 +207,7 @@
     const button = event.target.closest('button');
     if (button?.disabled) return;
     if (!button) return;
+    if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
     if (button.dataset.service) {

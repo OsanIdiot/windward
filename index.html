@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
   <script src="geography.js" defer></script>
   <script src="navigation.js" defer></script>
   <script src="engine.js" defer></script>
   <script src="sea-ui.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="app.js?v=10" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +43,7 @@
   <section id="entry-screen" aria-label="입장 화면">
   <header class="masthead">
     <a class="brand" href="./" aria-label="바람의 항로 처음 화면"><svg class="brand-mark"><use href="#i-compass"/></svg><span>바람의 항로<small>W I N D W A R D</small></span></a>
-    <div class="header-right"><span class="edition">A LITTLE SEAFARING ADVENTURE</span><a class="quiet support-link" href="https://litt.ly/iwiwi" target="_blank" rel="noopener noreferrer" aria-label="후원하기 (새 탭)">후원하기</a><button class="quiet" id="help-button" aria-label="게임 도움말">항해 안내 <span>?</span></button></div>
+    <div class="header-right"><span class="edition">A LITTLE SEAFARING ADVENTURE</span><button type="button" class="quiet" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="quiet" id="help-button" aria-label="게임 도움말">항해 안내 <span>?</span></button></div>
   </header>
     <div class="entry-body">
       <div class="entry-art" aria-hidden="true"><div class="entry-sun"></div><div class="entry-orbit"></div><svg viewBox="0 0 200 160"><use href="#ship-art"/></svg><span>ATLANTIC & MEDITERRANEAN · 1550</span></div>
@@ -54,7 +54,7 @@
     <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
   </section>
   <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>
-    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><a class="text-button support-link" href="https://litt.ly/iwiwi" target="_blank" rel="noopener noreferrer" aria-label="후원하기 (새 탭)">후원하기</a><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
+    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
     <section class="game-stats" aria-label="항해 현황">
       <div><svg class="icon"><use href="#i-coin"/></svg><span><small>보유 금화</small><strong id="gold">700 <em>G</em></strong></span></div>
       <div><svg class="icon"><use href="#i-box"/></svg><span><small>화물 적재</small><strong id="cargo-count">0 <em>/ 24</em></strong></span></div>
