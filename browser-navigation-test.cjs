@@ -8,12 +8,12 @@ const path = require('node:path');
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().endsWith('favicon.ico'))errors.push(r.status()+' '+r.url());});
   async function saved(){return page.evaluate(()=>JSON.parse(localStorage.getItem(Windward.KEY))||Windward.initial());}
-  async function reset(){await page.locator('#reset-button').click();await page.locator('#confirm-reset').click();}
+  async function reset(){await page.locator('#return-menu-button').click();await page.locator('#reset-button').click();await page.locator('#confirm-reset').click();}
   async function clickPoint(point){
     const client=await page.evaluate(p=>{const m=document.getElementById('sea-map').getScreenCTM();const c=new DOMPoint(p.x,p.y).matrixTransform(m);return{x:c.x,y:c.y};},point);
     await page.mouse.click(client.x,client.y);
   }
-  await page.goto('http://127.0.0.1:4173/?v=4');
+  await page.goto('http://127.0.0.1:4173/?v=6');await page.locator('#start-button').click();
   assert.equal(await page.locator('#chart-screen').isVisible(),false);
   assert.equal(await page.locator('#dock').isVisible(),true);
   await page.screenshot({path:path.join(__dirname,'port-screen-desktop.png'),fullPage:true});
@@ -38,7 +38,7 @@ const path = require('node:path');
   assert.ok(Math.hypot(s.position.x-origin.x,s.position.y-origin.y)>0);
   assert.ok(Math.hypot(s.position.x-sea.x,s.position.y-sea.y)>1);
   const paused=s.position;
-  await page.reload();
+  await page.reload();await page.locator('#start-button').click();
   assert.equal((await saved()).navigation.running,false);
   assert.equal(await page.locator('#pause-sailing').innerText(),'계속');
   assert.deepEqual((await saved()).position,paused);
@@ -58,7 +58,7 @@ const path = require('node:path');
   assert.equal((await saved()).port,null);assert.equal((await saved()).visited.includes('cedar'),false);
   assert.match(await page.locator('#arrival-panel').innerText(),/미확인 항구/);
   assert.equal(await page.locator('#dock').isVisible(),false);
-  await page.reload();
+  await page.reload();await page.locator('#start-button').click();
   assert.equal(await page.locator('#enter-port-button').isVisible(),true);
   assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/미확인 항구/);
   await page.locator('#enter-port-button').click();
@@ -102,11 +102,11 @@ const path = require('node:path');
     const s={version:2,gold:2345,day:1,port:'lume',cargo:{grain:0,timber:0,cloth:7,spice:0},ship:1,visited:['lume','cedar'],voyages:0,earned:0,rescues:0,won:false,discoveries:[],contractsDone:[],activeContract:null,reputation:0,adventureWon:false,log:[]};
     localStorage.setItem('windward-v1',JSON.stringify(s));sessionStorage.setItem('legacy-migration-test','1');
   });
-  await page.reload();assert.match(await page.locator('#gold').innerText(),/2,345/);assert.equal(await page.locator('#dock').isVisible(),true);
+  await page.reload();await page.locator('#start-button').click();assert.match(await page.locator('#gold').innerText(),/2,345/);assert.equal(await page.locator('#dock').isVisible(),true);
   await page.locator('#harbor-button').click();assert.match(await page.locator('[data-chart-port="cedar"]').innerText(),/카디스/);await page.locator('#enter-port-button').click();
   await page.locator('#tab-adventure').click();await page.locator('#explore-button').click();await page.locator('#discovery-dialog .primary').click();assert.equal((await saved()).version,4);
   const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
-  const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));await phone.goto('http://127.0.0.1:4173/?v=4');
+  const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));await phone.goto('http://127.0.0.1:4173/?v=6');await phone.locator('#start-button').tap();
   assert.equal(await phone.locator('#dock').isVisible(),true);
   await phone.screenshot({path:path.join(__dirname,'port-screen-mobile.png'),fullPage:true});
   for(const id of ['adventure','contracts','ship','market']) await phone.locator('#tab-'+id).tap();

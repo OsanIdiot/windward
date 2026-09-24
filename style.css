@@ -63,6 +63,29 @@
 @media(max-width:740px){.chart #sea-map{height:350px}.chart-note{font-size:10px;padding:7px}.chart-note small{font-size:5px}.chart-tools{top:57px;right:9px}.chart-tools button{min-height:40px}.map-bottom{font-size:8px}.navigation-toolbar{gap:6px}.navigation-toolbar .segmented button{padding:8px 9px;font-size:10px}#navigation-status{font-size:9px}.chart-instructions{font-size:9px}.port-chip{font-size:11px}.port-chip small{font-size:7px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
 .game-layout{display:block}
+#entry-screen{min-height:100svh;display:flex;flex-direction:column}
+#entry-screen .masthead{width:100%;padding:24px 0}
+.entry-body{flex:1;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:60px;padding:50px 0}
+#entry-screen .intro{display:block;padding:0}
+#entry-screen h1{font-size:clamp(30px,3.4vw,49px);line-height:1.4}
+#entry-screen .intro-copy{font-size:14px;line-height:2;margin-top:20px}
+.entry-actions{margin-top:40px;max-width:330px}
+#start-button{width:100%;min-height:58px;justify-content:space-between;font-size:15px;padding-inline:24px}
+#entry-screen .save-status{display:block;margin-top:18px;font-size:10px}
+.entry-art{position:relative;aspect-ratio:1;overflow:hidden;border-radius:50% 50% 4px 4px;background:linear-gradient(180deg,#e8e5ce 0%,#dce4d3 62%,#a9c7bc 62%,#bfd3c5 100%)}
+.entry-art:after{content:'';position:absolute;inset:62% 0 0;background:repeating-linear-gradient(0deg,transparent 0 22px,#f5f1e733 23px 24px)}
+.entry-art>svg{position:absolute;width:65%;height:60%;bottom:10%;left:18%;z-index:1;animation:bob 6s ease-in-out infinite}
+.entry-art>span{position:absolute;bottom:7%;width:100%;text-align:center;font:8px Georgia,serif;letter-spacing:2px;color:#486e65;z-index:2}
+.entry-sun{position:absolute;top:13%;right:19%;width:22%;aspect-ratio:1;border-radius:50%;background:#faf0c8}
+.entry-orbit{position:absolute;inset:8%;border:1px solid #849b7e44;border-radius:50%}
+.entry-bottom{display:flex;align-items:center;justify-content:space-between;padding:16px 0 24px;gap:15px;color:var(--muted);font-size:10px}
+.entry-bottom #reset-button{font-size:10px;font-weight:400}
+.play-controls{display:flex;align-items:center;justify-content:flex-end;gap:20px;min-height:44px}
+.play-controls>span{margin-right:auto;font-size:10px;color:var(--rust)}
+.play-controls .text-button{font-size:10px;text-decoration:none}
+#game-screen{padding-top:8px;padding-bottom:24px;outline:none}
+#game-screen .game-stats{margin-top:0}
+@media(max-width:740px){#entry-screen .masthead{padding:18px 0}.entry-body{display:flex;flex-direction:column;gap:25px;padding:26px 0}.entry-art{width:min(70vw,260px);max-height:235px}.entry-body .intro{text-align:center;width:100%}#entry-screen h1{font-size:30px}#entry-screen .intro-copy{font-size:12px;margin-top:12px}.entry-actions{margin:24px auto 0;max-width:310px}.entry-actions .hint{font-size:10px}.entry-bottom{padding-bottom:max(16px,env(safe-area-inset-bottom));font-size:9px;gap:8px}.entry-bottom #reset-button{font-size:10px}.play-controls{gap:18px}#game-screen{padding-top:0}}
 .test-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 18px;margin-top:20px;background:#eee3ca;border:1px solid #c8b28c;border-radius:3px;font-size:11px;line-height:1.8}.test-banner strong{color:#885436}.test-banner span{flex:1;min-width:180px}.test-banner a{min-height:44px;display:inline-flex;align-items:center;color:var(--teal)}
 .test-tools{margin-top:24px;padding:18px;background:#eee3ca;border:1px solid #c8b28c;border-radius:3px}.test-tools h3{font:20px var(--serif);margin:0 0 10px}.test-tools p:not(.eyebrow){font-size:11px;line-height:1.8}.test-tools>div{display:flex;flex-wrap:wrap;gap:9px}.test-tools button{flex:1;min-width:120px}
 .ship-roster{border-top:1px solid var(--line);margin-top:24px;padding-top:14px}.ship-roster summary{cursor:pointer;min-height:44px;font-size:12px}.ship-roster ol{padding:0;list-style:none}.ship-roster li{padding:12px;border-bottom:1px solid var(--line)}.ship-roster li.current{background:#e3e9d9}.ship-roster strong{display:block;font-size:12px}.ship-roster span{display:block;margin-top:6px;font-size:11px;color:var(--muted)}.upgrade-box h3 small{font:11px var(--sans);color:var(--muted)}

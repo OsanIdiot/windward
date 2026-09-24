@@ -10,6 +10,7 @@
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart;
   let previousFrame = 0, lastSave = 0;
+  let playing = false, hasVoyage = false;
   let storageOK = true, storageMessage = '';
   const quantities = Object.fromEntries(E.GOODS.map(g => [g.id, 1]));
   try {
@@ -17,7 +18,7 @@
     if (saved) {
       const parsed = JSON.parse(saved);
       const restored = E.migrate(parsed);
-      if (restored) { state = restored; if (parsed.version < 4) storageMessage = '기존 항해 기록을 이어갑니다. 항구 버튼으로 항해도를 열어보세요.'; }
+      if (restored) { state = restored; hasVoyage = true; if (parsed.version < 4) storageMessage = '기존 항해 기록을 이어갑니다. 항구 버튼으로 항해도를 열어보세요.'; }
       else storageMessage = '저장 기록을 읽을 수 없어 새 항해로 시작합니다.';
     }
   } catch (_) { storageOK = false; storageMessage = '저장 기능을 사용할 수 없습니다. 이 탭에서만 진행됩니다.'; }
@@ -31,6 +32,7 @@
     toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4300);
   }
   function save() {
+    hasVoyage = true;
     try { localStorage.setItem(saveKey, JSON.stringify(state)); storageOK = true; }
     catch (_) { storageOK = false; }
     $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
@@ -161,8 +163,12 @@
     $('adventure-checks').innerHTML = `<span class="${state.discoveries.length === 5 ? 'complete' : ''}">발견 ${state.discoveries.length}/5</span><span class="${state.contractsDone.length >= 3 ? 'complete' : ''}">의뢰 ${state.contractsDone.length}/3</span><span>명성 ${state.reputation}</span>${state.adventureWon ? '<span class="complete">모험 목표 달성</span>' : ''}`;
   }
   function render() {
-    $('chart-screen').hidden = state.screen !== 'chart';
-    $('dock').hidden = state.screen !== 'port';
+    $('entry-screen').hidden = playing;
+    $('game-screen').hidden = !playing;
+    $('chart-screen').hidden = !playing || state.screen !== 'chart';
+    $('dock').hidden = !playing || state.screen !== 'port';
+    $('start-button').innerHTML = `${hasVoyage ? '이어하기' : '항해 시작'} <span aria-hidden="true">→</span>`;
+    $('entry-summary').textContent = hasVoyage ? `${state.day}일째 · ${state.port ? E.portLabel(state, state.port) : '해상에서 정지 중'} · ${number(state.gold)} G` : '리스본, 작은 돛배 한 척에서 시작되는 이야기';
     renderStats(); renderMap(); renderDock();
   }
   function focusScreen(id) {
@@ -178,7 +184,7 @@
   function frame(stamp) {
     const dt = Math.min(.15, Math.max(0, (stamp - previousFrame) / 1000));
     previousFrame = stamp;
-    if (state.navigation?.running && dt > 0 && !document.hidden) {
+    if (playing && state.navigation?.running && dt > 0 && !document.hidden) {
       const wasPort = state.port;
       try { state = E.advance(state, dt); }
       catch (error) { state = E.act(state, { type: 'pause' }); toast(error.message, true); }
@@ -195,7 +201,16 @@
     if (button?.disabled) return;
     if (!button) return;
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
-    if (button.id === 'help-button') { $('help-dialog').showModal(); return; }
+    if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
+    if (button.id === 'start-button') {
+      playing = true; save(); render(); focusScreen('game-screen'); return;
+    }
+    if (button.id === 'return-menu-button') {
+      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      playing = false; save(); render();
+      clearTimeout(toastTimer); $('toast').hidden = true;
+      focusScreen('entry-title'); return;
+    }
     if (button.id === 'harbor-button') {
       if (perform({ type: 'show-chart' })) { chart.reset(); focusScreen('chart-heading'); }
       return;
@@ -245,7 +260,8 @@
     if (button.id === 'confirm-reset') {
       state = E.initial(); tab = 'market'; side = 'buy';
       E.GOODS.forEach(g => { quantities[g.id] = 1; });
-      $('reset-dialog').close(); save(); render(); chart.reset(); toast('리스본에서 새로운 항해가 시작되었습니다.');
+      playing = true;
+      $('reset-dialog').close(); save(); render(); chart.reset(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
     }
   });
   document.addEventListener('change', event => {
@@ -266,14 +282,15 @@
     const banner = document.createElement('aside');
     banner.className = 'test-banner';
     banner.innerHTML = '<strong>테스트 모드</strong><span>일반 기록과 별도로 저장 · 선박 메뉴에서 금화 지급 / 최고 등급 장착</span><a href="?v=5">일반 플레이로 돌아가기</a>';
-    document.querySelector('main').prepend(banner);
+    $('entry-screen').prepend(banner);
+    $('play-mode-label').textContent = '테스트 모드';
     document.title += ' · 테스트 모드';
   }
   chart = window.createSeaUI({ read: () => state, navigate, toggle: type => perform({ type }), notify: toast });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
   });
-  window.addEventListener('pagehide', save);
+  window.addEventListener('pagehide', () => { if (hasVoyage) save(); });
   requestAnimationFrame(frame);
   render();
   $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';

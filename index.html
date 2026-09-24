@@ -39,12 +39,22 @@
       </symbol>
     </defs>
   </svg>
+  <main>
+  <section id="entry-screen" aria-label="입장 화면">
   <header class="masthead">
     <a class="brand" href="./" aria-label="바람의 항로 처음 화면"><svg class="brand-mark"><use href="#i-compass"/></svg><span>바람의 항로<small>W I N D W A R D</small></span></a>
     <div class="header-right"><span class="edition">A LITTLE SEAFARING ADVENTURE</span><button class="quiet" id="help-button" aria-label="게임 도움말">항해 안내 <span>?</span></button></div>
   </header>
-  <main>
-    <section class="intro"><div><p class="eyebrow">TRADE, EXPLORE & FIND YOUR OWN WAY</p><h1>바람이 이끄는 곳으로.</h1><p class="intro-copy">교역으로 꿈을 키우고, 탐험으로 바다의 이야기를 찾으세요.</p></div><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></section>
+    <div class="entry-body">
+      <div class="entry-art" aria-hidden="true"><div class="entry-sun"></div><div class="entry-orbit"></div><svg viewBox="0 0 200 160"><use href="#ship-art"/></svg><span>ATLANTIC & MEDITERRANEAN · 1550</span></div>
+      <section class="intro"><p class="eyebrow">TRADE, EXPLORE & FIND YOUR OWN WAY</p><h1 id="entry-title" tabindex="-1">바람이 이끄는 곳으로.</h1><p class="intro-copy">교역으로 꿈을 키우고,<br>탐험으로 바다의 이야기를 찾으세요.</p>
+        <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
+      </section>
+    </div>
+    <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
+  </section>
+  <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>
+    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
     <section class="game-stats" aria-label="항해 현황">
       <div><svg class="icon"><use href="#i-coin"/></svg><span><small>보유 금화</small><strong id="gold">700 <em>G</em></strong></span></div>
       <div><svg class="icon"><use href="#i-box"/></svg><span><small>화물 적재</small><strong id="cargo-count">0 <em>/ 24</em></strong></span></div>
@@ -97,7 +107,7 @@
         </div>
       </section>
     </div>
-    <footer><span>WINDWARD <i>·</i> 바람의 항로</span><span>경제·모험 시제품 v0.5 <i>·</i> 외부 연결 없이 플레이</span><button id="reset-button" class="text-button">새 항해 시작</button></footer>
+  </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="안내 닫기">×</button><p class="eyebrow">THE MEDITERRANEAN, c.1550</p><h2>이름 없는 항구를 찾아서.</h2><p>리스본 항구 화면에서 시작합니다. 항구 버튼으로 항해도에 나가세요. 다른 항구는 입항 버튼을 누르기 전까지 '미확인 항구'로 표시됩니다.</p><ol><li><strong>바다를 눌러 수동항해하세요.</strong><br>배가 클릭하거나 터치한 지점까지 실제로 이동합니다. 육지에 막히면 해안을 따라 중간 지점을 지정하세요.</li><li><strong>항구 표시 가까이 접근하세요.</strong><br>항구 가까이에 도착하면 배가 정지하고 입항 버튼이 나타납니다. 입항을 누르면 이름이 공개되고 항구 화면이 열립니다.</li><li><strong>방문한 항구는 클릭 한 번으로.</strong><br>자동항해는 해협과 해안을 우회합니다. '정지'로 멈추거나 바다를 다시 눌러 항로를 바꿀 수 있습니다.</li><li><strong>항구에서 다음 항해를 준비하세요.</strong><br>교역소·탐험·의뢰·선박을 이용하고 항구 버튼을 눌러 항해도로 돌아갑니다. 항해한 거리에 따라 게임 속 날짜와 경비가 진행됩니다. 탐험에서 얻은 해류 지도는 경비를 줄여줍니다.</li></ol><p class="hint">드래그로 지도 이동, +/−로 확대·축소. 모바일에서는 두 손가락으로 확대할 수 있습니다.<br>새로고침하거나 화면을 벗어나면 항해가 정지된 상태로 저장됩니다. '계속'을 눌러 재개하세요.<br>항구는 1550년경의 실제 도시, 해안선은 현대 지형을 단순화했습니다. 의뢰·모험·시세는 게임용 창작입니다.</p><button class="primary" data-close="help-dialog">나의 첫 항로 그리기</button></dialog>
