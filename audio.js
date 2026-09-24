@@ -246,7 +246,7 @@
       const now = context.currentTime;
       // Inharmonic resonances give a bright metal bell, not a musical chime.
       // These are synthesized oscillators; no samples from the reference recording.
-      const strikes = [[0, .85, .65], [.4, .9, .7], [.82, 1, 1]];
+      const strikes = [[0, .85, .12], [.18, .9, .12], [.36, 1, 1]];
       const partials = [[1215, .022, 2.7], [1280, .04, 2.4], [1640, .115, 3.7], [2050, .11, 3.1], [2580, .035, 2.2], [3080, .07, 2.5], [3210, .027, 1.7], [4260, .045, 1.4]];
       for (const [offset, strength, tail] of strikes) {
         for (const [frequency, volume, duration] of partials) {

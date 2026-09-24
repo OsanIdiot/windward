@@ -37,7 +37,7 @@ async function instrument(context) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=17';
+    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=20';
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     await instrument(context);
     const page = await context.newPage(), errors = [];
@@ -84,11 +84,11 @@ async function instrument(context) {
     await page.locator('#voyage-enter-port').click();
     assert.equal(await page.evaluate(() => audioProbe.oscillators), 26, 'Two modulators plus three eight-partial synthesized bell strikes');
     const strikes = await page.evaluate(() => [audioProbe.tones[4], audioProbe.tones[12], audioProbe.tones[20]]);
-    assert.ok(Math.abs(strikes[1].start - strikes[0].start - .4) < .001, 'First gap is shortened to .40 seconds versus the reference');
-    assert.ok(Math.abs(strikes[2].start - strikes[1].start - .42) < .001, 'Second gap is shortened to .42 seconds');
+    assert.ok(Math.abs(strikes[1].start - strikes[0].start - .18) < .001, 'First gap is a tight .18 seconds');
+    assert.ok(Math.abs(strikes[2].start - strikes[1].start - .18) < .001, 'Second gap matches the first for three quick strikes');
     assert.ok(strikes.every(tone => tone.frequency === 1640), 'Bright metal resonance keeps the same pitch across strikes');
     assert.ok(strikes[2].stop - strikes[2].start > 3.7, 'Final bell retains a long decay');
-    assert.ok(strikes[0].stop - strikes[0].start < strikes[2].stop - strikes[2].start, 'First strikes decay sooner');
+    assert.ok(strikes.slice(0, 2).every(tone => tone.stop - tone.start < .5), 'Only the final strike has a long tail');
     assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop).length), 0, 'Bell contains no recorded sample');
     await page.waitForFunction(() => audioProbe.tones.slice(2).every(tone => tone.ended), null, { timeout: 6000 });
     await page.locator('#harbor-button').click(); await page.locator('#voyage-enter-port').click();
