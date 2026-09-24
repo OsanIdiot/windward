@@ -23,12 +23,12 @@
     function worldTransform(context, position, x = cx, y = cy, zoom = scale) {
       context.translate(x - position.x * zoom, y - position.y * zoom); context.scale(zoom, zoom);
     }
-    function ship(time, moving, tier) {
+    function ship(time, moving, tier, speed) {
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(heading * Math.PI / 180);
       const size = (width < 500 ? .8 : 1) * (1 + tier * .035); ctx.scale(size, size);
       ctx.fillStyle = '#164e4c33'; ctx.beginPath(); ctx.ellipse(5, 6, 28, 54, 0, 0, Math.PI * 2); ctx.fill();
       if (moving) {
-        ctx.strokeStyle = '#edf6da99'; ctx.lineWidth = 2;
+        ctx.strokeStyle = `rgba(237,246,218,${.6*speed})`; ctx.lineWidth = 1+speed;
         for (const side of [-1, 1]) { ctx.beginPath();ctx.moveTo(side*10,-38);ctx.quadraticCurveTo(side*30,5,side*32,46);ctx.stroke(); }
       }
       ctx.save(); if (!reduced.matches) ctx.rotate(Math.sin(time * 1.4) * .025);
@@ -75,7 +75,8 @@
       $('voyage-needle').style.transform=`rotate(${degree}deg)`;
       text('voyage-position',`${Math.abs(coordinate.lat).toFixed(2)}° N · ${Math.abs(coordinate.lon).toFixed(2)}° ${coordinate.lon>=0?'E':'W'}`);
       text('voyage-motion',nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
-      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${E.SHIPS[state.ship].speed}배속`);
+      const speed = nav?.running ? state.motion?.speed ?? 1 : 0;
+      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${Math.round(speed*100)}% · ${speed===0?'정지':state.motion?.turning?'선회 중':speed<.95?'가속 중':'순항'}`);
       text('voyage-mood',near?`${E.portLabel(state,near.id)} 앞바다`:visible.length?'수평선 너머, 항구의 모습':'바람을 따라, 더 먼 바다로');
       text('voyage-status',nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
       $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&!nav.running?'계속':'정지');
@@ -88,7 +89,8 @@
       const state=read(), moving=!!state.navigation?.running, dt=lastStamp?Math.max(0,Math.min(.1,(stamp-lastStamp)/1000)):0;
       lastStamp=stamp;
       const target=state.navigation?.points[0];
-      if(target){const wanted=(Math.atan2(target.x-state.position.x,state.position.y-target.y)*180/Math.PI+360)%360;const difference=(wanted-heading+540)%360-180;heading=(heading+difference*Math.min(1,dt*8)+360)%360;}
+      if(state.motion) heading=state.motion.heading;
+      else if(target){const wanted=(Math.atan2(target.x-state.position.x,state.position.y-target.y)*180/Math.PI+360)%360;const difference=(wanted-heading+540)%360-180;heading=(heading+difference*Math.min(1,dt*8)+360)%360;}
       if(previous&&N.distance(previous,state.position)>35)trail=[];
       if(moving&&(!previous||N.distance(previous,state.position)>.6)){trail.push({...state.position,at:stamp});previous={...state.position};}
       trail=trail.filter(p=>stamp-p.at<7000).slice(-220);
@@ -112,7 +114,7 @@
       ctx.restore();
       const visible=renderPorts(state);
       for(const {x,y} of visible){ctx.save();ctx.translate(x,y);ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
-      ship(time,moving,state.ship);
+      ship(time,moving,state.ship,state.motion?.speed??1);
       if(stamp-lastHUD>100||!dt){renderHUD(state,visible);renderMini(state);lastHUD=stamp;}
     }
     canvas.addEventListener('pointerdown',event=>{if(event.button===0)press={id:event.pointerId,x:event.clientX,y:event.clientY};});

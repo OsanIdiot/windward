@@ -6,6 +6,8 @@
     let enabled = true, context, master, flow, wind, rigging, failed = !AudioContext;
     let scene = { active: false, sea: false, moving: false }, signature = '', resuming = false;
     const bells = new Set();
+    const gulls = new Set();
+    let gullBuffer, nextGullAt = 0;
     try { enabled = localStorage.getItem(key) !== 'off'; } catch (_) {}
 
     function status() {
@@ -75,13 +77,50 @@
       source.connect(output); output.connect(master); source.start();
       return output;
     }
+    function stopGulls() {
+      for (const source of gulls) { try { source.stop(); } catch (_) {} }
+      gulls.clear(); nextGullAt = 0;
+    }
+    function callGull() {
+      if (!gullBuffer) {
+        const rate = context.sampleRate;
+        gullBuffer = context.createBuffer(1, Math.ceil(rate * 1.65), rate);
+        const data = gullBuffer.getChannelData(0);
+        for (const [start, duration, pitch] of [[0, .48, 1100], [.7, .65, 990]]) {
+          let phase = 0;
+          for (let i = 0; i < duration * rate; i++) {
+            const t = i / rate, u = t / duration;
+            const frequency = pitch * (.72 + .48 * Math.sin(Math.PI * u)) + 35 * Math.sin(t * 70);
+            phase += 2 * Math.PI * frequency / rate;
+            const envelope = Math.sin(Math.PI * u) ** 1.5;
+            data[Math.floor(start * rate) + i] += .23 * envelope * (Math.sin(phase) + .3 * Math.sin(phase * 2) + .12 * Math.sin(phase * 3));
+          }
+        }
+      }
+      const source = context.createBufferSource(), gain = context.createGain();
+      const pan = context.createStereoPanner ? context.createStereoPanner() : null;
+      source.buffer = gullBuffer; source.playbackRate.value = .92 + Math.random() * .16;
+      gain.gain.value = .085;
+      source.connect(gain);
+      if (pan) { pan.pan.value = Math.random() * 1.2 - .6; gain.connect(pan); pan.connect(master); }
+      else gain.connect(master);
+      gulls.add(source);
+      source.onended = () => { source.disconnect(); gain.disconnect(); pan?.disconnect(); gulls.delete(source); };
+      source.start();
+    }
+    function updateGulls() {
+      if (!enabled || !scene.active || !scene.sea || !context || context.state !== 'running') return;
+      const now = context.currentTime;
+      if (!nextGullAt) nextGullAt = now + 10 + Math.random() * 6;
+      else if (now >= nextGullAt) { callGull(); nextGullAt = now + 22 + Math.random() * 18; }
+    }
     function initialize() {
       if (context || failed) return;
       try {
         context = new AudioContext();
         master = context.createGain(); master.gain.value = 0; master.connect(context.destination);
-        flow = layer({ seconds: 11, warm: true, type: 'lowpass', frequency: 2200, gain: .58, swell: .045, pace: .73 });
-        wind = layer({ seconds: 17, warm: false, type: 'bandpass', frequency: 950, gain: .085, swell: .012, pace: .061 });
+        flow = layer({ seconds: 11, warm: true, type: 'lowpass', frequency: 1800, gain: .2, swell: .014, pace: .73 });
+        wind = layer({ seconds: 17, warm: false, type: 'bandpass', frequency: 950, gain: .055, swell: .008, pace: .061 });
         rigging = deckSounds();
         context.onstatechange = () => {
           if (context.state === 'running' && (!enabled || !scene.active)) sync();
@@ -103,16 +142,18 @@
       if (!enabled || !scene.active) {
         // Stop immediately on mute/background; never let a delayed resume leak sound.
         master.gain.cancelScheduledValues(context.currentTime); master.gain.setValueAtTime(0, context.currentTime);
-        stopBells();
+        stopBells(); stopGulls();
         if (context.state === 'running') context.suspend().then(() => {
           if (enabled && scene.active) sync();
         }).catch(() => {});
         report(); return;
       }
       fade(master.gain, .45);
-      fade(flow.gain, scene.sea ? scene.moving ? 1 : .12 : 0, .9);
-      fade(wind.gain, scene.sea ? scene.moving ? 1 : .4 : 0, 1.5);
-      fade(rigging.gain, scene.sea && scene.moving ? .65 : 0, .7);
+      const speed = scene.moving ? scene.speed : 0;
+      fade(flow.gain, scene.sea ? .08 + .92 * speed : 0, .9);
+      fade(wind.gain, scene.sea ? .4 + .6 * speed : 0, 1.5);
+      fade(rigging.gain, scene.sea ? .35 * speed : 0, .7);
+      if (!scene.sea) stopGulls();
       if (context.state !== 'running' && !resuming) {
         resuming = true;
         context.resume().then(() => {
@@ -124,10 +165,11 @@
       report();
     }
     function update(next) {
-      const nextSignature = `${next.active}/${next.sea}/${next.moving}`;
-      scene = next;
-      if (signature === nextSignature) return;
-      signature = nextSignature; sync();
+      const speed = Number.isFinite(next.speed) ? Math.round(Math.max(0, Math.min(1, next.speed)) * 10) / 10 : next.moving ? 1 : 0;
+      const nextSignature = `${next.active}/${next.sea}/${next.moving}/${speed}`;
+      scene = { ...next, speed };
+      if (signature !== nextSignature) { signature = nextSignature; sync(); }
+      updateGulls();
     }
     function unlock() {
       if (!enabled || failed) return;

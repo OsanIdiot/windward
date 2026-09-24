@@ -33,6 +33,63 @@ test('helm controls work with limited gold and stop safely without overspending'
 const E = require('./engine.js'), N = E.N;
 function run(s) { for(let i=0;s.navigation?.running&&i<10000;i++)s=E.advance(s,.5); return s; }
 const chart = () => E.act(E.initial(), {type:'show-chart'});
+function openWater() {
+  const state = chart();
+  state.port = null; state.position = N.project(-12, 40); state.motion.heading = 180;
+  return E.act(state, {type:'navigate',mode:'manual',point:N.project(-12,29)});
+}
+test('departure accelerates smoothly and pause/resume starts again from rest',()=>{
+  let s=openWater(), previous={...s.position};const distances=[];
+  for(let i=0;i<6;i++){s=E.advance(s,.5);distances.push(N.distance(previous,s.position));previous={...s.position};}
+  assert.ok(distances[0]>0&&distances[0]<4);
+  assert.ok(distances.every((d,i)=>i===0||d>=distances[i-1]));
+  assert.ok(s.motion.speed>.95);
+  s=E.act(s,{type:'pause'});assert.equal(s.motion.speed,0);
+  const resumed=E.advance(E.act(s,{type:'resume'}),.25);
+  assert.ok(resumed.motion.speed>0&&resumed.motion.speed<.15);
+  assert.ok(N.distance(resumed.position,s.position)<1);
+});
+test('turning slows the ship without teleporting and straight sailing restores cruise',()=>{
+  let s=openWater();for(let i=0;i<3;i++)s=E.advance(s,1);
+  const before=JSON.parse(JSON.stringify(s));
+  s=E.act(s,{type:'steer',heading:90});assert.deepEqual(s.position,before.position);
+  assert.equal(s.motion.speed,before.motion.speed);
+  s=E.advance(s,.5);assert.ok(s.motion.speed<.8);assert.equal(s.motion.turning,true);
+  assert.ok(Math.abs(s.motion.heading-before.motion.heading)<=47.6);
+  s=E.act(s,{type:'steer',heading:180});
+  for(let i=0;i<3;i++)s=E.advance(s,1);
+  assert.ok(s.motion.speed>.95);assert.equal(s.motion.turning,false);assert.ok(E.valid(s));
+  const straight=E.act(s,{type:'steer',heading:180});
+  assert.equal(straight.motion.speed,s.motion.speed,'Repeated straight commands retain momentum');
+});
+test('route corners brake in advance while retaining the safe waypoint path',()=>{
+  let s=openWater();const corner=N.project(-12,36),end=N.project(-7.5,36);
+  s.navigation.points=[corner,end];s.motion.speed=1;
+  while(N.distance(s.position,corner)>18)s=E.advance(s,.1);
+  assert.equal(s.navigation.points.length,2);
+  assert.ok(s.motion.speed<.9);assert.equal(s.motion.turning,true);
+  const result=run(s);assert.ok(N.distance(result.position,end)<.01);
+  assert.equal(result.motion.speed,0);assert.ok(E.valid(result));
+});
+test('acceleration is frame-rate independent and charges only actual distance',()=>{
+  let coarse=openWater(),fine=openWater();
+  for(let i=0;i<2;i++)coarse=E.advance(coarse,1);
+  for(let i=0;i<120;i++)fine=E.advance(fine,1/60);
+  assert.ok(N.distance(coarse.position,fine.position)<.02);
+  assert.ok(Math.abs(coarse.motion.speed-fine.motion.speed)<1e-8);
+  assert.equal(coarse.gold,fine.gold);assert.equal(coarse.day,fine.day);
+  const full=run(coarse),q=E.passage(openWater(),[N.project(-12,29)]);
+  assert.equal(full.gold,700-q.cost);assert.ok(E.valid(full));
+});
+test('legacy saves acquire motion safely; reload keeps heading but resets speed',()=>{
+  const s=E.advance(openWater(),1),old=JSON.parse(JSON.stringify(s));delete old.motion;
+  const legacy=E.migrate(old);assert.ok(legacy);assert.equal(legacy.motion.speed,0);
+  assert.deepEqual(legacy.position,s.position);assert.deepEqual(legacy.cargo,s.cargo);
+  const restored=E.migrate(s);assert.equal(restored.motion.heading,s.motion.heading);assert.equal(restored.motion.speed,0);
+  for(const patch of [{speed:-1},{speed:NaN},{speed:2},{heading:Infinity},{heading:360},{turning:'yes'}]) {
+    assert.equal(E.migrate({...s,motion:{...s.motion,...patch}}),null);
+  }
+});
 function approach(s,id) {
   s=E.act(s,{type:'show-chart'});
   for(const point of N.route(s.position,E.portOf(id))) {

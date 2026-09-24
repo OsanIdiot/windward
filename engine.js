@@ -43,7 +43,11 @@
   // Legacy IDs and storage key preserve existing voyages as geography changes.
   const KEY = 'windward-v1';
   const adventureDefaults = () => ({ discoveries: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
-  const initial = () => ({ version: 4, screen: 'port', gold: 700, day: 1, port: 'lume', lastPort: 'lume', position: { x: PORTS[0].x, y: PORTS[0].y }, navigation: null, seaProgress: 0, ship: 0, cargo: { grain: 0, timber: 0, cloth: 0, spice: 0 }, visited: ['lume'], voyages: 0, earned: 0, rescues: 0, won: false, ...adventureDefaults(), log: ['1550년, 리스본에서 700 G와 작은 돛배로 첫 항해를 준비합니다.'] });
+  const bearing = (a, b) => (Math.atan2(b.x - a.x, a.y - b.y) * 180 / Math.PI + 360) % 360;
+  const angleDelta = (from, to) => (to - from + 540) % 360 - 180;
+  const motionDefaults = state => ({ speed: 0, heading: state?.navigation?.points[0] ? bearing(state.position, state.navigation.points[0]) : 225, turning: false });
+  function stopMotion(state) { state.motion.speed = 0; state.motion.turning = false; }
+  const initial = () => ({ version: 4, screen: 'port', gold: 700, day: 1, port: 'lume', lastPort: 'lume', position: { x: PORTS[0].x, y: PORTS[0].y }, navigation: null, motion: motionDefaults(), seaProgress: 0, ship: 0, cargo: { grain: 0, timber: 0, cloth: 0, spice: 0 }, visited: ['lume'], voyages: 0, earned: 0, rescues: 0, won: false, ...adventureDefaults(), log: ['1550년, 리스본에서 700 G와 작은 돛배로 첫 항해를 준비합니다.'] });
   const portOf = id => PORTS.find(p => p.id === id);
   const nearbyPort = state => PORTS.find(p => N.distance(state.position, p) <= 6 && N.clear(state.position, p)) || null;
   const portLabel = (state, id) => state.visited.includes(id) ? portOf(id).name : '미확인 항구';
@@ -75,34 +79,48 @@
   function dock(state, port) {
     const first = !state.visited.includes(port.id);
     state.position = { x: port.x, y: port.y }; state.port = port.id; state.lastPort = port.id;
-    state.navigation = null; state.screen = 'port'; state.voyages++;
+    state.navigation = null; state.screen = 'port'; state.voyages++; stopMotion(state);
     if (first) state.visited.push(port.id);
     return finish(state, first ? `${port.name} 발견! 직접 입항하여 항구 이름과 자동항해가 해제되었습니다.` : `${port.name}에 입항했습니다.`);
   }
   function advance(input, seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 1) throw Error('항해 시간 간격이 올바르지 않습니다.');
     const state = JSON.parse(JSON.stringify(input)), nav = state.navigation;
-    if (!nav?.running) return state;
-    let remaining = seconds * 45 * SHIPS[state.ship].speed;
-    while (remaining > 0.00001 && nav.points.length) {
+    state.motion ||= motionDefaults(state);
+    if (!nav?.running) { stopMotion(state); return state; }
+    const motion = state.motion, cruise = 45 * SHIPS[state.ship].speed;
+    let remaining = seconds;
+    // Small time slices preserve coastal safety and consistent handling at any frame rate.
+    while (remaining > 0.000001 && nav.points.length) {
       const target = nav.points[0], distance = N.distance(state.position, target);
       if (distance < 0.00001) { nav.points.shift(); continue; }
-      const step = Math.min(remaining, distance, 2);
+      const dt = Math.min(remaining, .025, 2 / cruise);
+      remaining -= dt;
+      const direction = bearing(state.position, target), error = angleDelta(motion.heading, direction);
+      motion.heading = (motion.heading + Math.max(-95 * dt, Math.min(95 * dt, error)) + 360) % 360;
+      let desired = .24 + .76 * Math.max(0, 1 - Math.abs(error) / 110) ** 2;
+      const nextPoint = nav.points[1];
+      const bend = nextPoint ? Math.min(1, Math.abs(angleDelta(direction, bearing(target, nextPoint))) / 110) : 0;
+      const approach = Math.max(0, 1 - distance / (cruise * .85 + 4));
+      desired = Math.min(desired, 1 - .72 * bend * approach);
+      motion.turning = Math.abs(error) > 8 || (bend > .2 && approach > .15);
+      const before = motion.speed, change = dt * (desired < before ? 2.1 : .38);
+      motion.speed += Math.max(-change, Math.min(change, desired - before));
+      const step = Math.min(distance, cruise * dt * (before + motion.speed) / 2, 2);
       const next = { x: state.position.x + (target.x - state.position.x) * step / distance, y: state.position.y + (target.y - state.position.y) * step / distance };
-      if (!N.clear(state.position, next)) { nav.running = false; return finish(state, '해안에 접근하여 정지했습니다. 바다 쪽으로 새 항로를 지정하세요.'); }
+      if (!N.clear(state.position, next)) { nav.running = false; stopMotion(state); return finish(state, '해안에 접근하여 정지했습니다. 바다 쪽으로 새 항로를 지정하세요.'); }
       const progress = state.seaProgress + step / (55 * SHIPS[state.ship].speed);
       const days = Math.floor(progress + 1e-9), cost = days * (state.discoveries.includes('tide') ? 7 : 8);
-      if (state.gold < cost) { nav.running = false; return finish(state, '항해 경비가 부족해 정지했습니다. 가까운 항구로 이동하거나 귀환 지원을 요청하세요.'); }
+      if (state.gold < cost) { nav.running = false; stopMotion(state); return finish(state, '항해 경비가 부족해 정지했습니다. 가까운 항구로 이동하거나 귀환 지원을 요청하세요.'); }
       state.gold -= cost; state.day += days; state.seaProgress = Math.max(0, progress - days); state.position = next;
-      remaining -= step;
       const arrival = PORTS.find(p => (nav.mode === 'manual' || nav.targetPort === p.id) && (p.id !== state.lastPort || nav.targetPort === p.id || N.distance(target, p) < 2) && N.distance(next, p) < 5 && N.clear(next, p));
       if (arrival) {
-        state.navigation = null;
+        state.navigation = null; stopMotion(state);
         return finish(state, `${portLabel(state, arrival.id)} 근처에 도착했습니다. 입항 버튼을 눌러 항구로 들어가세요.`);
       }
       if (distance <= step + 0.00001) nav.points.shift();
     }
-    if (!nav.points.length) { state.navigation = null; return finish(state, '지정한 해상 지점에 도착했습니다. 다음 바다 지점을 선택하세요.'); }
+    if (!nav.points.length) { state.navigation = null; stopMotion(state); return finish(state, '지정한 해상 지점에 도착했습니다. 다음 바다 지점을 선택하세요.'); }
     return state;
   }
   function finish(state, message) {
@@ -120,12 +138,13 @@
   }
   function act(input, action) {
     const state = JSON.parse(JSON.stringify(input));
+    state.motion ||= motionDefaults(state);
     if (action.type === 'show-chart') { state.screen = 'chart'; return state; }
     if (action.type === 'enter-port') {
       if (state.navigation?.running) throw Error('배를 정지한 뒤 입항해 주세요.');
       const port = nearbyPort(state);
       if (!port) throw Error('입항하려면 항구의 해상 정박점 가까이 이동해 주세요.');
-      if (state.port === port.id) { state.navigation = null; state.screen = 'port'; return state; }
+      if (state.port === port.id) { state.navigation = null; state.screen = 'port'; stopMotion(state); return state; }
       return dock(state, port);
     }
     if (action.type === 'navigate' || action.type === 'sail' || action.type === 'steer') {
@@ -144,16 +163,17 @@
       state.port = null;
       return finish(state, action.type === 'steer' ? '조타: 정한 방향으로 항해합니다. 해안·경계·예산 한계에 도달하면 정지합니다.' : route.mode === 'auto' ? `${portLabel(state, route.targetPort)}(으)로 자동항해를 시작합니다.` : '수동항해: 클릭한 해상 지점으로 이동합니다.');
     }
-    if (action.type === 'pause') { if (state.navigation) state.navigation.running = false; return state; }
+    if (action.type === 'pause') { if (state.navigation) state.navigation.running = false; stopMotion(state); return state; }
     if (action.type === 'resume') {
       if (!state.navigation?.points.length) throw Error('이어갈 항로가 없습니다. 바다를 눌러 주세요.');
       if (passage(state, state.navigation.points).cost > state.gold) throw Error('항해 경비가 부족합니다.');
-      state.navigation.running = true; return state;
+      stopMotion(state); state.navigation.running = true; return state;
     }
     if (action.type === 'rescue') {
       if (state.port) throw Error('이미 항구에 정박해 있습니다.');
       const port = portOf(state.lastPort), fee = Math.min(40, state.gold);
       state.gold -= fee; state.day += 3; state.position = { x: port.x, y: port.y }; state.port = null; state.navigation = null; state.screen = 'chart';
+      stopMotion(state);
       return finish(state, `${port.name} 앞바다로 복귀했습니다. 3일 · ${fee} G. 입항 버튼을 눌러 주세요.`);
     }
     if (!state.port || state.screen !== 'port') throw Error('교역·탐험·의뢰는 항구 화면에서 이용할 수 있습니다. 입항 버튼을 눌러 주세요.');
@@ -244,6 +264,8 @@
     if (!validBase(s) || s.version !== 4 || !N.isSea(s.position) || !portOf(s.lastPort) || !s.visited.includes(s.lastPort)) return false;
     if (!['chart', 'port'].includes(s.screen) || (s.screen === 'port' && !s.port)) return false;
     if (!Number.isFinite(s.seaProgress) || s.seaProgress < 0 || s.seaProgress >= 1) return false;
+    if (s.motion !== undefined && (!s.motion || !Number.isFinite(s.motion.speed) || s.motion.speed < 0 || s.motion.speed > 1
+      || !Number.isFinite(s.motion.heading) || s.motion.heading < 0 || s.motion.heading >= 360 || typeof s.motion.turning !== 'boolean')) return false;
     if (s.port && (s.navigation || s.lastPort !== s.port || N.distance(s.position, portOf(s.port)) > 0.01)) return false;
     if (s.navigation !== null) {
       const nav = s.navigation;
@@ -264,7 +286,9 @@
     if (next.version === 2) { const p = portOf(next.port); next = { ...next, version: 3, lastPort: next.port, position: { x: p.x, y: p.y }, navigation: null, seaProgress: 0 }; }
     if (next.version === 3) next = { ...next, version: 4, screen: next.port ? 'port' : 'chart' };
     if (next.navigation) next.navigation = { ...next.navigation, running: false };
-    return valid(next) ? JSON.parse(JSON.stringify(next)) : null;
+    if (!valid(next)) return null;
+    next.motion = { ...(next.motion || motionDefaults(next)), speed: 0, turning: false };
+    return JSON.parse(JSON.stringify(next));
   }
   const api = { GOODS, PORTS, SHIPS, SITES, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

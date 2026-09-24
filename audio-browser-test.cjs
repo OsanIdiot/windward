@@ -5,7 +5,7 @@ const path = require('node:path');
 async function instrument(context) {
   await context.addInitScript(() => {
     const Native = window.AudioContext || window.webkitAudioContext;
-    window.audioProbe = { contexts: [], oscillators: 0, sources: 0, gains: [], tones: [] };
+    window.audioProbe = { contexts: [], oscillators: 0, sources: 0, gains: [], tones: [], buffers: [] };
     window.AudioContext = class extends Native {
       constructor(...args) {
         super(...args);
@@ -21,7 +21,14 @@ async function instrument(context) {
           node.addEventListener('ended', () => { tone.ended = true; });
           return node;
         };
-        this.createBufferSource = () => { audioProbe.sources++; return source(); };
+        this.createBufferSource = () => {
+          audioProbe.sources++;
+          const node = source(), record = { ended: false }, start = node.start.bind(node);
+          audioProbe.buffers.push(record);
+          node.start = (...args) => { record.loop = node.loop; record.duration = node.buffer?.duration; record.at = this.currentTime; start(...args); };
+          node.addEventListener('ended', () => { record.ended = true; });
+          return node;
+        };
       }
     };
   });
@@ -30,7 +37,7 @@ async function instrument(context) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=15';
+    const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=16';
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     await instrument(context);
     const page = await context.newPage(), errors = [];
@@ -47,17 +54,18 @@ async function instrument(context) {
     });
     assert.equal(await page.evaluate(() => audioProbe.rms()), 0, 'Port starts silent');
     await page.locator('#harbor-button').click();
-    await page.waitForFunction(() => audioProbe.rms() > .001);
+    await page.waitForFunction(() => audioProbe.rms() > .0002);
     await page.locator('#voyage-canvas').focus(); await page.keyboard.press('ArrowLeft');
     await page.waitForFunction(() => audioProbe.gains[3].gain.value > .85);
-    await page.waitForFunction(() => audioProbe.gains[7].gain.value > .5);
+    await page.waitForFunction(() => audioProbe.gains[7].gain.value > .25);
+    assert.equal(await page.evaluate(() => Math.round(audioProbe.gains[1].gain.value * 100)), 20, 'Water base gain is reduced from .58 to .2');
     assert.ok(await page.evaluate(() => audioProbe.gains[2].gain.value / audioProbe.gains[1].gain.value < .1), 'Water texture has no large surf-like swell');
     assert.ok(await page.evaluate(() => audioProbe.rms() < .15), 'Ambient output stays restrained');
     await page.locator('#voyage-pause').click();
     await page.waitForFunction(() => audioProbe.gains[3].gain.value < .2 && audioProbe.gains[7].gain.value < .01);
     await page.locator('#open-chart-button').click();
     assert.equal(await page.evaluate(() => audioProbe.contexts.length), 1);
-    assert.equal(await page.evaluate(() => audioProbe.sources), 3, 'Flow, wind and rigging sources are not duplicated by view switching');
+    assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => source.loop).length), 3, 'Flow, wind and rigging sources are not duplicated by view switching');
     await page.locator('#return-sea-button').click();
     const sound = page.locator('#game-screen [data-sound]');
     await page.evaluate(() => { for (let i = 0; i < 8; i++) document.querySelector('#game-screen [data-sound]').click(); });
@@ -87,7 +95,14 @@ async function instrument(context) {
     await sound.click();
     await page.waitForFunction(() => audioProbe.contexts[0].state === 'running' && audioProbe.tones.slice(2).every(tone => tone.ended));
     await page.waitForFunction(() => audioProbe.gains[3].gain.value < .01 && audioProbe.gains[6].gain.value < .01);
+    assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop).length), 0, 'Gulls do not sound inside port');
     await page.locator('#harbor-button').click();
+    await page.waitForFunction(() => audioProbe.buffers.some(source => !source.loop), null, { timeout: 19000 });
+    const bird = await page.evaluate(() => audioProbe.buffers.find(source => !source.loop));
+    assert.ok(bird.duration > 1 && bird.duration < 2, 'Occasional short gull call, not a constant loop');
+    await sound.click(); await page.waitForFunction(() => audioProbe.contexts[0].state === 'suspended');
+    await sound.click(); await page.waitForFunction(() => audioProbe.contexts[0].state === 'running' && audioProbe.buffers.filter(source => !source.loop).every(source => source.ended));
+    assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop).length), 1, 'No queued gull calls replay after mute');
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
     await page.waitForFunction(() => audioProbe.contexts[0].state === 'suspended');
     await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
@@ -118,6 +133,6 @@ async function instrument(context) {
     assert.equal(await quiet.locator('#game-screen [data-sound]').isDisabled(), true);
     assert.equal(await quiet.locator('#voyage-screen').isVisible(), true);
     assert.deepEqual(errors, []);
-    console.log('PASS: real Web Audio signal, gesture unlock, motion/idle mix, shared chart audio, mute persistence, entry bells, background/menu suspension, mobile touch, responsive controls and unsupported-browser fallback.');
+    console.log('PASS: quieter speed-linked Web Audio, occasional cancellable gull calls, gesture unlock, shared chart audio, mute persistence, three arrival bells, background/menu suspension, mobile touch and unsupported-browser fallback.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
