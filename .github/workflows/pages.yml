@@ -24,7 +24,7 @@ jobs:
       - name: Prepare only browser assets
         run: |
           mkdir -p _site
-          cp index.html style.css geography.js navigation.js engine.js sea-ui.js voyage-ui.js app.js LICENSE _site/
+          cp index.html style.css geography.js navigation.js engine.js sea-ui.js voyage-ui.js audio.js app.js LICENSE _site/
           mkdir -p _site/assets
           cp assets/harbor-town.webp _site/assets/
       - uses: actions/upload-pages-artifact@v4

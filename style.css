@@ -115,6 +115,8 @@
 .play-controls{display:flex;align-items:center;justify-content:flex-end;gap:20px;min-height:44px}
 .play-controls>span{margin-right:auto;font-size:10px;color:var(--rust)}
 .play-controls .text-button{font-size:10px;text-decoration:none}
+.entry-actions [data-sound]{display:block;margin:4px auto;text-decoration:none}
+@media(max-width:740px){.play-controls{flex-wrap:wrap;column-gap:12px;row-gap:0}.play-controls>span:empty{display:none}}
 @media(max-width:740px){.header-right{gap:12px}}
 @media(max-width:380px){#entry-screen .masthead{flex-wrap:wrap;gap:4px}#entry-screen .header-right{width:100%;justify-content:flex-end}}
 #game-screen{padding-top:8px;padding-bottom:24px;outline:none}

@@ -6,13 +6,14 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=11" defer></script>
   <script src="sea-ui.js" defer></script>
   <script src="voyage-ui.js?v=11" defer></script>
-  <script src="app.js?v=11" defer></script>
+  <script src="audio.js?v=12" defer></script>
+  <script src="app.js?v=12" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -49,13 +50,13 @@
     <div class="entry-body">
       <div class="entry-art" aria-hidden="true"><div class="entry-sun"></div><div class="entry-orbit"></div><svg viewBox="0 0 200 160"><use href="#ship-art"/></svg><span>ATLANTIC & MEDITERRANEAN · 1550</span></div>
       <section class="intro"><p class="eyebrow">TRADE, EXPLORE & FIND YOUR OWN WAY</p><h1 id="entry-title" tabindex="-1">바람이 이끄는 곳으로.</h1><p class="intro-copy">교역으로 꿈을 키우고,<br>탐험으로 바다의 이야기를 찾으세요.</p>
-        <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
+        <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
       </section>
     </div>
     <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
   </section>
   <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>
-    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
+    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
     <section class="game-stats" aria-label="항해 현황">
       <div><svg class="icon"><use href="#i-coin"/></svg><span><small>보유 금화</small><strong id="gold">700 <em>G</em></strong></span></div>
       <div><svg class="icon"><use href="#i-box"/></svg><span><small>화물 적재</small><strong id="cargo-count">0 <em>/ 24</em></strong></span></div>
@@ -75,7 +76,7 @@
         </div>
         <div class="voyage-controls"><div><p id="voyage-status" role="status">바다를 눌러 방향을 정하세요.</p><p class="hint">클릭·터치한 방향으로 계속 항해 · 해안 앞 자동 정지 · 경로 지정은 해도에서</p></div><button id="voyage-pause" class="secondary" disabled>정지</button></div>
         <div id="voyage-arrival" class="arrival-panel" aria-live="polite"></div>
-        <details class="helm-help"><summary>조타 방법</summary><p>이 화면은 북쪽이 위입니다. 배 주변 바다를 누르면 그 방향으로 항해합니다. 가까운 항구 표지를 누르면 그 항구로 접근하며, 미확인 항구는 육지를 가로질러 갈 수 없습니다. 방향키로 동서남북 조타, 스페이스로 정지·계속도 가능합니다. 해도와 항해 화면은 같은 배 위치와 경로를 공유합니다.</p></details>
+        <details class="helm-help"><summary>조타와 소리 안내</summary><p>이 화면은 북쪽이 위입니다. 배 주변 바다를 누르면 그 방향으로 항해합니다. 가까운 항구 표지를 누르면 그 항구로 접근하며, 미확인 항구는 육지를 가로질러 갈 수 없습니다. 방향키로 동서남북 조타, 스페이스로 정지·계속도 가능합니다. 해도와 항해 화면은 같은 배 위치와 경로를 공유합니다.</p><p>상단 '소리 켜짐/꺼짐'으로 파도·바람·입항 알림음을 조절합니다. '소리 대기'라면 화면을 터치해 주세요. 음량은 기기의 미디어 음량으로 조절하며, 다른 탭이나 입장 화면으로 이동하면 소리가 멈춥니다.</p></details>
       </section>
       <section class="chart-section" id="chart-screen" aria-label="항해 지도" hidden>
         <div class="section-heading"><h2 id="chart-heading" tabindex="-1"><svg class="icon"><use href="#i-compass"/></svg> 항해도</h2><button id="return-sea-button" class="secondary">배로 돌아가기 <svg class="icon"><use href="#i-ship"/></svg></button></div>

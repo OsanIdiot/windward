@@ -8,7 +8,7 @@
   const number = value => value.toLocaleString('ko-KR');
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, seaView = 'sea';
+  let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, sound, seaView = 'sea';
   let previousFrame = 0, lastSave = 0;
   let playing = false, hasVoyage = false;
   let storageOK = true, storageMessage = '';
@@ -178,6 +178,10 @@
     $('start-button').innerHTML = `${hasVoyage ? '이어하기' : '항해 시작'} <span aria-hidden="true">→</span>`;
     $('entry-summary').textContent = hasVoyage ? `${state.day}일째 · ${state.port ? E.portLabel(state, state.port) : '해상에서 정지 중'} · ${number(state.gold)} G` : '리스본, 작은 돛배 한 척에서 시작되는 이야기';
     renderStats(); renderMap(); renderDock(); voyage?.render();
+    syncSound();
+  }
+  function syncSound() {
+    sound?.update({ active: playing && !document.hidden, sea: state.screen === 'chart', moving: !!state.navigation?.running });
   }
   function focusScreen(id) {
     $(id).focus({ preventScroll: true });
@@ -208,12 +212,14 @@
       } else if (stamp - lastSave > 700) { save(); lastSave = stamp; }
     }
     voyage?.render(stamp);
+    syncSound();
     requestAnimationFrame(frame);
   }
   document.addEventListener('click', event => {
     const button = event.target.closest('button');
     if (button?.disabled) return;
     if (!button) return;
+    if (button.hasAttribute('data-sound')) { sound.toggle(); return; }
     if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
@@ -225,7 +231,7 @@
       $('service-title').focus({ preventScroll: true }); return;
     }
     if (button.id === 'start-button') {
-      playing = true; save(); render(); focusScreen('game-screen'); return;
+      playing = true; save(); render(); sound.unlock(); focusScreen('game-screen'); return;
     }
     if (button.id === 'return-menu-button') {
       $('service-dialog').close();
@@ -249,6 +255,7 @@
     if (button.id === 'enter-port-button' || button.id === 'voyage-enter-port') {
       const arrived = !state.port;
       if (perform({ type: 'enter-port' })) {
+        sound.arrival();
         side = arrived ? 'sell' : side;
         tab = E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : 'market';
         renderDock(); focusScreen('port-name');
@@ -292,6 +299,7 @@
       state = E.initial(); tab = 'market'; side = 'buy';
       E.GOODS.forEach(g => { quantities[g.id] = 1; });
       playing = true; seaView = 'sea';
+      syncSound(); sound.unlock();
       $('reset-dialog').close(); save(); render(); chart.reset(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
     }
   });
@@ -319,10 +327,22 @@
   }
   chart = window.createSeaUI({ read: () => state, navigate, toggle: type => perform({ type }), notify: toast });
   voyage = window.createVoyageUI({ read: () => state, steer, navigate, toggle: type => perform({ type }), notify: toast });
+  sound = window.createSeaAudio({ notify: toast, changed: ({ enabled, supported, waiting }) => {
+    document.querySelectorAll('[data-sound]').forEach(button => {
+      button.textContent = !supported ? '소리 미지원' : waiting ? '소리 대기' : enabled ? '소리 켜짐' : '소리 꺼짐';
+      button.setAttribute('aria-pressed', String(enabled && supported));
+      button.setAttribute('aria-label', !supported ? '항해 소리 미지원' : enabled ? '항해 소리 끄기' : '항해 소리 켜기');
+      button.title = waiting ? '화면을 터치하면 소리가 재개됩니다. 누르면 소리를 끕니다.' : '파도·바람·입항 알림음';
+      button.disabled = !supported;
+    });
+  } });
+  document.addEventListener('pointerdown', () => { if (playing) sound.unlock(); });
+  document.addEventListener('keydown', () => { if (playing) sound.unlock(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
+    syncSound();
   });
-  window.addEventListener('pagehide', () => { if (hasVoyage) save(); });
+  window.addEventListener('pagehide', () => { sound.update({ active: false, sea: false, moving: false }); if (hasVoyage) save(); });
   requestAnimationFrame(frame);
   render();
   $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
