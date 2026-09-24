@@ -101,8 +101,8 @@
 .play-controls{display:flex;align-items:center;justify-content:flex-end;gap:20px;min-height:44px}
 .play-controls>span{margin-right:auto;font-size:10px;color:var(--rust)}
 .play-controls .text-button{font-size:10px;text-decoration:none}
-.support-link{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap;font-size:12px;color:var(--rust);text-decoration:none}.support-link:hover{text-decoration:underline;text-underline-offset:4px}.play-controls .support-link{font-size:10px}
-@media(max-width:740px){.header-right{gap:12px}.header-right .support-link{font-size:11px}}
+.support-link{display:inline-flex;align-items:center;white-space:nowrap;padding:1px 6px;text-decoration:none}
+@media(max-width:740px){.header-right{gap:12px}}
 @media(max-width:380px){#entry-screen .masthead{flex-wrap:wrap;gap:4px}#entry-screen .header-right{width:100%;justify-content:flex-end}}
 #game-screen{padding-top:8px;padding-bottom:24px;outline:none}
 #game-screen .game-stats{margin-top:0}

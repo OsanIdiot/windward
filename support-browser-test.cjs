@@ -7,7 +7,11 @@ const assert = require('node:assert/strict');
     const context = await browser.newContext({reducedMotion:'reduce'});
     const page = await context.newPage();
     await context.route('https://litt.ly/iwiwi', route => route.fulfill({status:200,body:'Support link test'}));
-    await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=8');
+    await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=9');
+    async function matchingStyle(linkSelector, helpSelector) {
+      const read = el => { const s = getComputedStyle(el); return ['color','fontSize','fontWeight','fontFamily','backgroundColor','borderWidth','textDecorationLine','padding'].map(key => s[key]); };
+      assert.deepEqual(await page.locator(linkSelector).evaluate(read),await page.locator(helpSelector).evaluate(read));
+    }
     for (const width of [320,390,768,1440]) {
       await page.setViewportSize({width,height:844});
       const link = page.locator('#entry-screen .support-link');
@@ -16,6 +20,7 @@ const assert = require('node:assert/strict');
       assert.match(await link.getAttribute('rel'),/noopener/);
       const a = await link.boundingBox(), b = await page.locator('#help-button').boundingBox();
       assert.ok(a.x+a.width<=b.x,'Support appears left of help');
+      await matchingStyle('#entry-screen .support-link','#help-button');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     }
     const popup = page.waitForEvent('popup');
@@ -27,6 +32,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#game-screen .support-link').isVisible(),true);
     const a = await page.locator('#game-screen .support-link').boundingBox(), b = await page.locator('[data-help]').boundingBox();
     assert.ok(a.x+a.width<=b.x);
+    await matchingStyle('#game-screen .support-link','[data-help]');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     console.log('PASS: support links in both screens, exact destination, safe new-tab behavior, left of help and responsive layout.');
   } finally {await browser.close();}
