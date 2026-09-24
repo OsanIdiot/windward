@@ -1,0 +1,80 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+
+(async()=>{
+  const browser=await chromium.launch({channel:'msedge',headless:true});
+  try {
+    const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'no-preference'});
+    const page=await context.newPage(),errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('response',r=>{if(r.status()>=400&&!r.url().endsWith('favicon.ico'))errors.push(r.status()+' '+r.url());});
+    const url=process.env.BASE_URL||'http://127.0.0.1:4173/?v=11';
+    const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem(Windward.KEY)));
+    await page.goto(url);await page.locator('#start-button').click();
+    const before=await saved();
+    await page.locator('#harbor-button').click();
+    assert.equal(await page.locator('#voyage-screen').isVisible(),true);
+    assert.equal(await page.locator('#chart-screen').isVisible(),false);
+    assert.equal((await saved()).gold,before.gold);assert.equal((await saved()).day,before.day);
+    assert.equal(await page.locator('#voyage-enter-port').isVisible(),true);
+    assert.equal((await page.locator('#voyage-screen').innerText()).includes('카디스'),false);
+    await page.screenshot({path:path.join(__dirname,'voyage-desktop.png'),fullPage:true});
+    await page.locator('#open-chart-button').click();
+    assert.equal(await page.locator('#chart-screen').isVisible(),true);
+    await page.locator('#return-sea-button').click();
+    const origin=(await saved()).position;
+    const box=await page.locator('#voyage-canvas').boundingBox();
+    await page.mouse.click(box.x+box.width*.28,box.y+box.height*.58);
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem(Windward.KEY)).navigation?.running);
+    await page.waitForFunction(p=>Math.hypot(JSON.parse(localStorage.getItem(Windward.KEY)).position.x-p.x,JSON.parse(localStorage.getItem(Windward.KEY)).position.y-p.y)>3,origin);
+    await page.locator('#voyage-pause').click();
+    let s=await saved();assert.equal(s.navigation.running,false);assert.equal(s.port,null);
+    await page.screenshot({path:path.join(__dirname,'voyage-underway.png'),fullPage:true});
+    const paused=s.position;
+    await page.locator('#open-chart-button').click();
+    assert.deepEqual((await saved()).position,paused);
+    assert.equal(await page.locator('#pause-sailing').innerText(),'계속');
+    await page.locator('#return-sea-button').click();
+    assert.deepEqual((await saved()).position,paused);
+    await page.reload();await page.locator('#start-button').click();
+    assert.equal(await page.locator('#voyage-screen').isVisible(),true);
+    assert.equal((await saved()).navigation.running,false);assert.deepEqual((await saved()).position,paused);
+    await page.locator('#voyage-canvas').focus();await page.keyboard.press('ArrowDown');
+    assert.equal((await saved()).navigation.running,true);
+    await page.keyboard.press('Space');assert.equal((await saved()).navigation.running,false);
+    await page.locator('#voyage-rescue').click();await page.locator('#voyage-enter-port').click();
+    assert.equal(await page.locator('#dock').isVisible(),true);
+    await page.locator('#harbor-button').click();await page.locator('#open-chart-button').click();
+    const points=await page.evaluate(()=>Windward.N.route(Windward.initial().position,Windward.portOf('cedar')));
+    for(const p of points){
+      const c=await page.evaluate(p=>{const c=new DOMPoint(p.x,p.y).matrixTransform(document.getElementById('sea-map').getScreenCTM());return{x:c.x,y:c.y};},p);
+      await page.mouse.click(c.x,c.y);
+      await page.waitForFunction(p=>{const s=JSON.parse(localStorage.getItem(Windward.KEY));return !s.navigation&&Math.hypot(s.position.x-p.x,s.position.y-p.y)<6;},p,{timeout:15000});
+    }
+    await page.locator('#return-sea-button').click();
+    assert.equal((await saved()).visited.includes('cedar'),false);
+    assert.match(await page.locator('#voyage-arrival').innerText(),/미확인 항구/);
+    assert.equal((await page.locator('#voyage-screen').innerText()).includes('카디스'),false);
+    await page.locator('#voyage-enter-port').click();assert.equal((await saved()).port,'cedar');
+    await page.locator('#harbor-button').click();await page.locator('#open-chart-button').click();
+    await page.locator('[data-chart-port="lume"]').click();
+    await page.locator('#return-sea-button').click();assert.equal((await saved()).navigation.mode,'auto');
+    await page.locator('#voyage-pause').click();
+    assert.equal((await saved()).navigation.running,false);
+    for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Fits ${width}`);}
+    const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));
+    await phone.goto(url);await phone.locator('#start-button').tap();await phone.locator('#harbor-button').tap();
+    await phone.screenshot({path:path.join(__dirname,'voyage-mobile.png'),fullPage:true});
+    const r=await phone.locator('#voyage-canvas').boundingBox();
+    await phone.touchscreen.tap(r.x+r.width*.22,r.y+r.height*.6);
+    await phone.waitForFunction(()=>JSON.parse(localStorage.getItem(Windward.KEY)).navigation?.running);
+    await phone.locator('#voyage-pause').tap();
+    assert.equal(await phone.evaluate(()=>JSON.parse(localStorage.getItem(Windward.KEY)).navigation.running),false);
+    await phone.locator('#mini-chart-button').tap();assert.equal(await phone.locator('#chart-screen').isVisible(),true);
+    await phone.locator('#return-sea-button').tap();assert.equal(await phone.locator('#voyage-screen').isVisible(),true);
+    assert.deepEqual(errors,[]);
+    console.log('PASS: close-up sea view, desktop click/touch helm, keyboard/pause, scene-chart sync, reload, rescue/entry, hidden port discovery, automatic navigation, mobile layouts and no browser errors.');
+  } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

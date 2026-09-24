@@ -1,5 +1,35 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+
+test('helm rays stop before coastlines and stay inside playable water',()=>{
+  for(const p of E.PORTS) for(let heading=0;heading<360;heading+=30) {
+    const end=N.headingTarget(p,heading);
+    assert.ok(N.isSea(end));assert.ok(N.clear(p,end));
+  }
+  assert.throws(()=>N.headingTarget(E.initial().position,NaN));
+  assert.throws(()=>N.headingTarget(E.initial().position,Infinity));
+  assert.throws(()=>N.headingTarget(E.initial().position,90,-1));
+});
+test('helm steering preserves cargo, supports pause/reload, and can be changed mid-voyage',()=>{
+  const start=chart();start.cargo.grain=10;
+  const moving=E.act(start,{type:'steer',heading:270});
+  assert.equal(start.port,'lume');assert.equal(moving.port,null);
+  assert.equal(moving.navigation.mode,'manual');assert.equal(moving.cargo.grain,10);
+  const atSea=E.advance(moving,.5),paused=E.act(atSea,{type:'pause'});
+  assert.deepEqual(E.advance(paused,1).position,paused.position);
+  const resumed=E.act(E.migrate(JSON.parse(JSON.stringify(paused))),{type:'resume'});
+  const turned=E.act(resumed,{type:'steer',heading:180});
+  assert.deepEqual(turned.position,resumed.position);assert.ok(E.valid(turned));
+  assert.equal(turned.cargo.grain,10);
+  assert.throws(()=>E.act(E.initial(),{type:'steer',heading:270}),/항해도/);
+});
+test('helm controls work with limited gold and stop safely without overspending',()=>{
+  for(const ship of [0,6]) for(const gold of [0,7,8,15]) {
+    const s=chart();s.gold=gold;s.ship=ship;s.seaProgress=.9;
+    const end=run(E.act(s,{type:'steer',heading:270}));
+    assert.ok(end.gold>=0);assert.ok(N.isSea(end.position));assert.ok(E.valid(end));
+  }
+});
 const E = require('./engine.js'), N = E.N;
 function run(s) { for(let i=0;s.navigation?.running&&i<10000;i++)s=E.advance(s,.5); return s; }
 const chart = () => E.act(E.initial(), {type:'show-chart'});

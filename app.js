@@ -8,7 +8,7 @@
   const number = value => value.toLocaleString('ko-KR');
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart;
+  let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, seaView = 'sea';
   let previousFrame = 0, lastSave = 0;
   let playing = false, hasVoyage = false;
   let storageOK = true, storageMessage = '';
@@ -172,11 +172,12 @@
   function render() {
     $('entry-screen').hidden = playing;
     $('game-screen').hidden = !playing;
-    $('chart-screen').hidden = !playing || state.screen !== 'chart';
+    $('chart-screen').hidden = !playing || state.screen !== 'chart' || seaView !== 'map';
+    $('voyage-screen').hidden = !playing || state.screen !== 'chart' || seaView !== 'sea';
     $('dock').hidden = !playing || state.screen !== 'port';
     $('start-button').innerHTML = `${hasVoyage ? '이어하기' : '항해 시작'} <span aria-hidden="true">→</span>`;
     $('entry-summary').textContent = hasVoyage ? `${state.day}일째 · ${state.port ? E.portLabel(state, state.port) : '해상에서 정지 중'} · ${number(state.gold)} G` : '리스본, 작은 돛배 한 척에서 시작되는 이야기';
-    renderStats(); renderMap(); renderDock();
+    renderStats(); renderMap(); renderDock(); voyage?.render();
   }
   function focusScreen(id) {
     $(id).focus({ preventScroll: true });
@@ -186,6 +187,11 @@
     try {
       state = E.act(state, { type: 'navigate', ...action });
       save(); render(); return true;
+    } catch (error) { toast(error.message, true); return false; }
+  }
+  function steer(heading) {
+    try {
+      state = E.act(state, { type: 'steer', heading }); save(); render(); return true;
     } catch (error) { toast(error.message, true); return false; }
   }
   function frame(stamp) {
@@ -201,6 +207,7 @@
         renderDock(); save(); toast(state.log[0]);
       } else if (stamp - lastSave > 700) { save(); lastSave = stamp; }
     }
+    voyage?.render(stamp);
     requestAnimationFrame(frame);
   }
   document.addEventListener('click', event => {
@@ -229,10 +236,17 @@
     }
     if (button.id === 'harbor-button') {
       $('service-dialog').close();
-      if (perform({ type: 'show-chart' })) { chart.reset(); focusScreen('chart-heading'); }
+      seaView = 'sea';
+      if (perform({ type: 'show-chart' })) { chart.reset(); voyage.reset(); focusScreen('voyage-heading'); }
       return;
     }
-    if (button.id === 'enter-port-button') {
+    if (button.id === 'open-chart-button' || button.id === 'mini-chart-button') {
+      seaView = 'map'; render(); chart.reset(); focusScreen('chart-heading'); return;
+    }
+    if (button.id === 'return-sea-button') {
+      seaView = 'sea'; render(); focusScreen('voyage-heading'); return;
+    }
+    if (button.id === 'enter-port-button' || button.id === 'voyage-enter-port') {
       const arrived = !state.port;
       if (perform({ type: 'enter-port' })) {
         side = arrived ? 'sell' : side;
@@ -256,7 +270,7 @@
     if (button.id === 'test-gold-button') { applyTestSupport('gold'); return; }
     if (button.id === 'test-ship-button') { applyTestSupport('ship'); return; }
     if (button.id === 'upgrade-button') { perform({ type: 'upgrade' }); return; }
-    if (button.id === 'rescue-button') { perform({ type: 'rescue' }); chart.reset(); return; }
+    if (button.id === 'rescue-button' || button.id === 'voyage-rescue') { perform({ type: 'rescue' }); chart.reset(); voyage.reset(); return; }
     if (button.id === 'relief-button') { perform({ type: 'relief' }); return; }
     if (button.id === 'accept-contract-button') { perform({ type: 'accept', contract: button.dataset.contract }); return; }
     if (button.id === 'deliver-button') { perform({ type: 'deliver' }); return; }
@@ -277,7 +291,7 @@
     if (button.id === 'confirm-reset') {
       state = E.initial(); tab = 'market'; side = 'buy';
       E.GOODS.forEach(g => { quantities[g.id] = 1; });
-      playing = true;
+      playing = true; seaView = 'sea';
       $('reset-dialog').close(); save(); render(); chart.reset(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
     }
   });
@@ -304,6 +318,7 @@
     document.title += ' · 테스트 모드';
   }
   chart = window.createSeaUI({ read: () => state, navigate, toggle: type => perform({ type }), notify: toast });
+  voyage = window.createVoyageUI({ read: () => state, steer, navigate, toggle: type => perform({ type }), notify: toast });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
   });

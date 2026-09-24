@@ -128,13 +128,21 @@
       if (state.port === port.id) { state.navigation = null; state.screen = 'port'; return state; }
       return dock(state, port);
     }
-    if (action.type === 'navigate' || action.type === 'sail') {
+    if (action.type === 'navigate' || action.type === 'sail' || action.type === 'steer') {
       if (state.screen !== 'chart') throw Error('항구 메뉴에서 항해도로 나간 뒤 출항해 주세요.');
-      const route = plan(state, action.type === 'sail' ? { mode: 'auto', destination: action.destination } : action);
+      let instruction = action.type === 'sail' ? { mode: 'auto', destination: action.destination } : action;
+      if (action.type === 'steer') {
+        const daily = state.discoveries.includes('tide') ? 7 : 8;
+        const affordable = Math.max(0, (Math.floor(state.gold / daily) + 1 - state.seaProgress) * 55 * SHIPS[state.ship].speed - .01);
+        const point = N.headingTarget(state.position, action.heading, Math.min(affordable, Math.hypot(N.G.width, N.G.height)));
+        if (N.distance(state.position, point) < 1) throw Error('이 방향은 해안이나 해역 경계에 가깝거나 경비가 부족합니다. 다른 방향 또는 귀환 지원을 이용하세요.');
+        instruction = { mode: 'manual', point };
+      }
+      const route = plan(state, instruction);
       if (route.cost > state.gold) throw Error(`예상 경비 ${route.cost} G가 부족합니다. 가까운 지점으로 이동하거나 귀환 지원을 이용하세요.`);
       state.navigation = { mode: route.mode, targetPort: route.targetPort, points: route.points, running: true };
       state.port = null;
-      return finish(state, route.mode === 'auto' ? `${portLabel(state, route.targetPort)}(으)로 자동항해를 시작합니다.` : '수동항해: 클릭한 해상 지점으로 이동합니다.');
+      return finish(state, action.type === 'steer' ? '조타: 정한 방향으로 항해합니다. 해안·경계·예산 한계에 도달하면 정지합니다.' : route.mode === 'auto' ? `${portLabel(state, route.targetPort)}(으)로 자동항해를 시작합니다.` : '수동항해: 클릭한 해상 지점으로 이동합니다.');
     }
     if (action.type === 'pause') { if (state.navigation) state.navigation.running = false; return state; }
     if (action.type === 'resume') {

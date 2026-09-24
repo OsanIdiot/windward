@@ -129,7 +129,20 @@
     return result;
   }
   function length(start, points) { let total = 0, previous = start; for (const p of points) { total += distance(previous, p); previous = p; } return total; }
-  const api = { G, project, unproject, isSea, clear, route, distance, length, nearestSea: p => isSea(p) ? p : point(closest(p)) };
+  function headingTarget(start, heading, limit = Math.hypot(G.width, G.height)) {
+    if (!isSea(start) || !Number.isFinite(heading) || !Number.isFinite(limit) || limit < 0) throw Error('조타 방향을 확인해 주세요.');
+    const angle = heading * Math.PI / 180, dx = Math.sin(angle), dy = -Math.cos(angle);
+    let end = { ...start };
+    // Scan short segments so even narrow peninsulas cannot be skipped.
+    for (let d = Math.min(2, limit); d > 0; d = Math.min(d + 2, limit)) {
+      const next = { x: start.x + dx * d, y: start.y + dy * d };
+      if (!clear(end, next)) break;
+      end = next;
+      if (d >= limit || d >= Math.hypot(G.width, G.height)) break;
+    }
+    return end;
+  }
+  const api = { G, project, unproject, isSea, clear, route, distance, length, headingTarget, nearestSea: p => isSea(p) ? p : point(closest(p)) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SeaNavigation = api;
 })(typeof window !== 'undefined' ? window : globalThis);

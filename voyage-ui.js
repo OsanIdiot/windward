@@ -1,0 +1,141 @@
+(function (root) {
+  'use strict';
+  root.createVoyageUI = function ({ read, steer, navigate, toggle, notify }) {
+    const E = root.Windward, N = E.N, $ = id => document.getElementById(id);
+    const canvas = $('voyage-canvas'), ctx = canvas.getContext('2d');
+    const mini = $('voyage-minimap'), mc = mini.getContext('2d');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const land = new Path2D(N.G.rings.map(r => 'M' + r.map(p => p.join(',')).join('L') + 'Z').join(''));
+    let width = 0, height = 0, scale = 1, cx = 0, cy = 0, heading = 225, lastStamp = 0, portKey = '';
+    let trail = [], previous = null, press = null, lastHUD = 0;
+    const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
+    function resize() {
+      const rect = canvas.getBoundingClientRect(), ratio = Math.min(2, devicePixelRatio || 1);
+      width = rect.width; height = rect.height;
+      if (!width || !height) return;
+      if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+        canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+      }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      scale = Math.min(width, height) / 145;
+      cx = width * .5; cy = height * .58;
+    }
+    function worldTransform(context, position, x = cx, y = cy, zoom = scale) {
+      context.translate(x - position.x * zoom, y - position.y * zoom); context.scale(zoom, zoom);
+    }
+    function ship(time, moving, tier) {
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(heading * Math.PI / 180);
+      const size = (width < 500 ? .8 : 1) * (1 + tier * .035); ctx.scale(size, size);
+      ctx.fillStyle = '#164e4c33'; ctx.beginPath(); ctx.ellipse(5, 6, 28, 54, 0, 0, Math.PI * 2); ctx.fill();
+      if (moving) {
+        ctx.strokeStyle = '#edf6da99'; ctx.lineWidth = 2;
+        for (const side of [-1, 1]) { ctx.beginPath();ctx.moveTo(side*10,-38);ctx.quadraticCurveTo(side*30,5,side*32,46);ctx.stroke(); }
+      }
+      ctx.save(); if (!reduced.matches) ctx.rotate(Math.sin(time * 1.4) * .025);
+      ctx.beginPath();ctx.moveTo(0,-53);ctx.bezierCurveTo(30,-24,27,32,13,48);ctx.lineTo(-13,48);ctx.bezierCurveTo(-27,32,-30,-24,0,-53);ctx.closePath();
+      ctx.fillStyle='#81583c';ctx.strokeStyle='#e3c992';ctx.lineWidth=3;ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,-42);ctx.bezierCurveTo(20,-16,20,23,11,37);ctx.lineTo(-11,37);ctx.bezierCurveTo(-20,23,-20,-16,0,-42);ctx.fillStyle='#c4a674';ctx.fill();
+      ctx.strokeStyle='#92764f';ctx.lineWidth=1;
+      for(let y=-21;y<33;y+=9){ctx.beginPath();ctx.moveTo(-14,y);ctx.lineTo(14,y);ctx.stroke();}
+      ctx.fillStyle='#70543b';ctx.fillRect(-11,27,22,14);ctx.fillStyle='#d6bb83';ctx.fillRect(-8,30,16,7);
+      ctx.strokeStyle='#72533a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-56);ctx.lineTo(0,34);ctx.stroke();
+      for(const [y,spread] of [[-19,29],[13,24]]) {
+        const billow = reduced.matches ? 0 : Math.sin(time*2+y)*2;
+        ctx.beginPath();ctx.moveTo(-spread,y-5);ctx.quadraticCurveTo(0,y-20-billow,spread,y-5);ctx.lineTo(spread-4,y+16);ctx.quadraticCurveTo(0,y+25+billow,-spread+4,y+16);ctx.closePath();
+        ctx.fillStyle='#fff4d6';ctx.strokeStyle='#b79f78';ctx.lineWidth=1;ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-spread,y-5);ctx.lineTo(spread,y-5);ctx.strokeStyle='#7e6144';ctx.lineWidth=2;ctx.stroke();
+      }
+      ctx.beginPath();ctx.moveTo(1,-47);ctx.lineTo(18,-43);ctx.lineTo(1,-36);ctx.closePath();ctx.fillStyle='#b56e50';ctx.fill();
+      ctx.restore();ctx.restore();
+    }
+    function renderMini(state) {
+      mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);
+      mc.save();worldTransform(mc,state.position,75,55,.5);mc.fillStyle='#e2dcc0';mc.fill(land,'evenodd');mc.restore();
+      for(const p of E.PORTS){const x=75+(p.x-state.position.x)*.5,y=55+(p.y-state.position.y)*.5;
+        if(x<4||x>146||y<4||y>106)continue;
+        mc.fillStyle=state.visited.includes(p.id)?'#386957':'#a68453';mc.beginPath();mc.arc(x,y,2,0,Math.PI*2);mc.fill();}
+      mc.save();mc.translate(75,55);mc.rotate(heading*Math.PI/180);mc.fillStyle='#a45c42';mc.beginPath();mc.moveTo(0,-6);mc.lineTo(4,5);mc.lineTo(0,3);mc.lineTo(-4,5);mc.closePath();mc.fill();mc.restore();
+      mc.fillStyle='#385d51';mc.font='10px Georgia';mc.fillText('N',7,13);
+    }
+    function renderPorts(state) {
+      const visible=E.PORTS.filter(p=>N.distance(state.position,p)<85).map(p=>({p,x:cx+(p.x-state.position.x)*scale,y:cy+(p.y-state.position.y)*scale})).filter(v=>v.x>50&&v.x<width-50&&v.y>115&&v.y<height-110);
+      const key=visible.map(v=>v.p.id+state.visited.includes(v.p.id)).join(',');
+      if(key!==portKey){
+        portKey=key;
+        $('voyage-ports').innerHTML=visible.map(({p})=>`<button class="voyage-port" data-voyage-port="${p.id}" aria-label="${E.portLabel(state,p.id)} 접근"><svg class="icon" aria-hidden="true"><use href="#i-anchor"/></svg>${E.portLabel(state,p.id)}</button>`).join('');
+      }
+      for(const {p,x,y} of visible){const b=$('voyage-ports').querySelector(`[data-voyage-port="${p.id}"]`);b.style.left=x+'px';b.style.top=(y-38)+'px';}
+      return visible;
+    }
+    function renderHUD(state, visible) {
+      const nav=state.navigation, near=E.nearbyPort(state), coordinate=N.unproject(state.position);
+      const degree=(Math.round(heading)%360+360)%360;
+      const directions=['북','북동','동','남동','남','남서','서','북서'];
+      text('voyage-bearing',`${directions[Math.round(degree/45)%8]} · ${degree}°`);
+      $('voyage-needle').style.transform=`rotate(${degree}deg)`;
+      text('voyage-position',`${Math.abs(coordinate.lat).toFixed(2)}° N · ${Math.abs(coordinate.lon).toFixed(2)}° ${coordinate.lon>=0?'E':'W'}`);
+      text('voyage-motion',nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
+      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${E.SHIPS[state.ship].speed}배속`);
+      text('voyage-mood',near?`${E.portLabel(state,near.id)} 앞바다`:visible.length?'수평선 너머, 항구의 모습':'바람을 따라, 더 먼 바다로');
+      text('voyage-status',nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
+      $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&!nav.running?'계속':'정지');
+      const html=near&&!nav?.running?`<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,near.id)} · 입항 가능</h3><p>처음 입항하면 항구 이름과 자동항해가 열립니다.</p></div><button class="primary" id="voyage-enter-port">입항 →</button>`:`<div><p class="eyebrow">THE OPEN WATER</p><p>미확인 항구는 가까이 접근한 뒤 입항하세요.</p></div>${!state.port?'<button class="text-button" id="voyage-rescue">귀환 지원 · 3일 / 최대 40 G</button>':''}`;
+      if($('voyage-arrival').innerHTML!==html)$('voyage-arrival').innerHTML=html;
+    }
+    function render(stamp = performance.now()) {
+      if($('voyage-screen').hidden||document.hidden){lastStamp=0;return;}
+      resize();if(!width||!height)return;
+      const state=read(), moving=!!state.navigation?.running, dt=lastStamp?Math.max(0,Math.min(.1,(stamp-lastStamp)/1000)):0;
+      lastStamp=stamp;
+      const target=state.navigation?.points[0];
+      if(target){const wanted=(Math.atan2(target.x-state.position.x,state.position.y-target.y)*180/Math.PI+360)%360;const difference=(wanted-heading+540)%360-180;heading=(heading+difference*Math.min(1,dt*8)+360)%360;}
+      if(previous&&N.distance(previous,state.position)>35)trail=[];
+      if(moving&&(!previous||N.distance(previous,state.position)>.6)){trail.push({...state.position,at:stamp});previous={...state.position};}
+      trail=trail.filter(p=>stamp-p.at<7000).slice(-220);
+      const time=reduced.matches?0:stamp/1000;
+      const gradient=ctx.createLinearGradient(0,0,width,height);gradient.addColorStop(0,'#a5c9c0');gradient.addColorStop(.55,'#75aaa5');gradient.addColorStop(1,'#528c88');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
+      ctx.save();worldTransform(ctx,state.position);
+      ctx.lineWidth=.45;ctx.strokeStyle='#eef5d83b';
+      const left=state.position.x-cx/scale,top=state.position.y-cy/scale;
+      for(let y=Math.floor(top/9)*9;y<top+height/scale+10;y+=9)for(let x=Math.floor(left/18)*18;x<left+width/scale+18;x+=18){const drift=Math.sin(y*.2)*5+Math.sin(time*.6+y)*1.5;ctx.beginPath();ctx.moveTo(x+drift,y);ctx.quadraticCurveTo(x+4+drift,y-1.3,x+8+drift,y);ctx.stroke();}
+      ctx.lineJoin='round';ctx.strokeStyle='#dfead39c';ctx.lineWidth=3.5;ctx.stroke(land);ctx.fillStyle='#dcd8b8';ctx.fill(land,'evenodd');ctx.strokeStyle='#8aab8a';ctx.lineWidth=.7;ctx.stroke(land);
+      // Decorative groves stay fixed to the world and are clipped to actual land.
+      ctx.save();ctx.clip(land,'evenodd');
+      for(let y=Math.floor(top/27)*27;y<top+height/scale+27;y+=27)for(let x=Math.floor(left/34)*34;x<left+width/scale+34;x+=34){
+        const offset=Math.sin(x*13+y*7)*8;
+        ctx.fillStyle='#9ba87b24';ctx.beginPath();ctx.ellipse(x+offset,y,13,7,.25,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#81936a45';ctx.lineWidth=.45;
+        for(let i=0;i<3;i++){const tx=x+offset+i*3-3,ty=y+Math.sin(i*2+x)*2;ctx.beginPath();ctx.moveTo(tx-1.5,ty);ctx.quadraticCurveTo(tx,ty-5,tx+1.5,ty);ctx.stroke();}
+      }
+      ctx.restore();
+      if(trail.length>1){ctx.beginPath();trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle='#eef4d745';ctx.lineWidth=2.5;ctx.stroke();ctx.strokeStyle='#f2f7df9c';ctx.lineWidth=.6;ctx.stroke();}
+      ctx.restore();
+      const visible=renderPorts(state);
+      for(const {x,y} of visible){ctx.save();ctx.translate(x,y);ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
+      ship(time,moving,state.ship);
+      if(stamp-lastHUD>100||!dt){renderHUD(state,visible);renderMini(state);lastHUD=stamp;}
+    }
+    canvas.addEventListener('pointerdown',event=>{if(event.button===0)press={id:event.pointerId,x:event.clientX,y:event.clientY};});
+    canvas.addEventListener('pointercancel',()=>{press=null;});
+    canvas.addEventListener('pointerup',event=>{
+      if(!press||press.id!==event.pointerId)return;
+      const moved=Math.hypot(event.clientX-press.x,event.clientY-press.y);press=null;if(moved>15)return;
+      const rect=canvas.getBoundingClientRect(),dx=event.clientX-rect.left-cx,dy=event.clientY-rect.top-cy;
+      if(Math.hypot(dx,dy)<18){notify('배에서 조금 떨어진 바다를 눌러 방향을 정해 주세요.');return;}
+      steer((Math.atan2(dx,-dy)*180/Math.PI+360)%360);
+    });
+    canvas.addEventListener('keydown',event=>{
+      const angles={ArrowUp:0,ArrowRight:90,ArrowDown:180,ArrowLeft:270};
+      if(event.key in angles){event.preventDefault();if(!event.repeat)steer(angles[event.key]);}
+      if(event.code==='Space'){event.preventDefault();if(!event.repeat&&read().navigation)toggle(read().navigation.running?'pause':'resume');}
+    });
+    $('voyage-pause').addEventListener('click',()=>toggle(read().navigation?.running?'pause':'resume'));
+    $('voyage-ports').addEventListener('click',event=>{
+      const button=event.target.closest('[data-voyage-port]');if(!button)return;
+      const state=read(),id=button.dataset.voyagePort,p=E.portOf(id);
+      if(E.nearbyPort(state)?.id===id&&!state.navigation?.running){notify('아래 입항 버튼으로 항구에 들어갈 수 있습니다.');return;}
+      navigate(state.visited.includes(id)?{mode:'auto',destination:id}:{mode:'manual',point:{x:p.x,y:p.y}});
+    });
+    return {render,reset:()=>{trail=[];previous=null;heading=225;lastStamp=0;render();}};
+  };
+})(window);
