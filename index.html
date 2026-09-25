@@ -14,7 +14,8 @@
   <script src="voyage-ui.js?v=27" defer></script>
   <script src="audio-config.js?v=21" defer></script>
   <script src="audio.js?v=21" defer></script>
-  <script src="app.js?v=26" defer></script>
+  <script src="play-session.js?v=30" defer></script>
+  <script src="app.js?v=30" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -54,6 +55,7 @@
         <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
       </section>
     </div>
+    <p id="session-notice" class="market-tip" role="status" hidden></p>
     <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
   </section>
   <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>

@@ -6,6 +6,7 @@ async function openService(page, name) {
   else await page.locator('[data-service="' + name + '"]').click();
 }
 async function openChart(page) {
+  await page.waitForFunction(() => !document.getElementById('start-button').disabled);
   if (await page.locator('#voyage-screen').isVisible()) await page.locator('#open-chart-button').click();
 }
 module.exports = { closeService, openService, openChart };

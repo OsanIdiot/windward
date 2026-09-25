@@ -68,6 +68,7 @@ const path = require('node:path');
     await closeService(page);await page.locator('#return-menu-button').click();
     await page.locator('#reset-button').click();
     await page.locator('#confirm-reset').click();
+    await page.locator('#reset-dialog').waitFor({ state: 'hidden' });
     assert.equal((await saved()).gold, 700);
     assert.equal((await saved()).cargo.grain, 0);
     assert.equal(await page.locator('#dock').isVisible(), true);

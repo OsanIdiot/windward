@@ -25,6 +25,50 @@
     }
   } catch (_) { storageOK = false; storageMessage = '저장 기능을 사용할 수 없습니다. 이 탭에서만 진행됩니다.'; }
 
+  const session = window.createPlaySession({ key: saveKey, onYield: yieldSession });
+  let starting = false;
+  function sessionNotice(message) {
+    $('session-notice').textContent = message;
+    $('session-notice').hidden = !message;
+  }
+  function yieldSession() {
+    if (playing) {
+      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      save();
+    }
+    playing = false;
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    clearTimeout(toastTimer); $('toast').hidden = true;
+    cancelChartPeek(); chartPointers.clear(); render();
+    sessionNotice('다른 탭에서 진행 중입니다. 이 탭의 항해와 저장을 중지했습니다. 여기서 이어하기를 누르면 최신 기록을 가져옵니다.');
+  }
+  async function beginSession(reset = false) {
+    if (starting) return false;
+    starting = true; $('start-button').disabled = true; $('confirm-reset').disabled = true;
+    sessionNotice('최신 항해 기록을 확인하고 있습니다. 다른 탭이 멈추면 이어집니다. 계속 기다리는 경우 기존 게임 탭을 닫아 주세요.');
+    // Unlock audio during the gesture, before waiting for another tab to finish saving.
+    sound.update({ active: true, sea: false, moving: false }); sound.unlock();
+    try {
+      if (!await session.claim() || !session.check()) {
+        sessionNotice('다른 탭에서 진행 중입니다. 이 탭에서 플레이하려면 이어하기를 눌러 주세요.');
+        return false;
+      }
+      const saved = reset ? null : localStorage.getItem(saveKey) || (testMode ? localStorage.getItem(E.KEY) : null);
+      const latest = saved ? E.migrate(JSON.parse(saved)) : E.initial();
+      if (!latest) throw Error('저장 기록을 읽을 수 없습니다. 새 항해를 시작하려면 초기화를 확인해 주세요.');
+      state = latest; playing = true;
+      if (reset) { tab = 'market'; side = 'buy'; seaView = 'sea'; E.GOODS.forEach(g => { quantities[g.id] = 1; }); }
+      save(); render(); chart.reset(); voyage.reset(); sessionNotice('');
+      return true;
+    } catch (error) {
+      playing = false; session.release(); render();
+      sessionNotice(`항해를 시작하지 못했습니다. ${error.message}`);
+      return false;
+    } finally {
+      starting = false; $('start-button').disabled = false; $('confirm-reset').disabled = false;
+      syncSound();
+    }
+  }
 
   function toast(message, error = false) {
     clearTimeout(toastTimer);
@@ -39,12 +83,14 @@
     toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4300);
   }
   function save() {
+    if (!session.canWrite()) return;
     hasVoyage = true;
     try { localStorage.setItem(saveKey, JSON.stringify(state)); storageOK = true; }
     catch (_) { storageOK = false; }
     $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
   }
   function perform(action) {
+    if (!playing || !session.check()) return false;
     try {
       const wonBefore = state.won;
       const adventureBefore = state.adventureWon;
@@ -107,6 +153,7 @@
       : '<p class="hint">빠르게 시험해 보고 싶다면 <a href="?v=5&test=1">테스트 모드 열기</a> · 일반 기록은 변경되지 않습니다.</p>';
   }
   function applyTestSupport(kind) {
+    if (!playing || !session.check()) return;
     if (!testMode || state.screen !== 'port' || !state.port) return;
     const next = JSON.parse(JSON.stringify(state));
     if (kind === 'gold') next.gold += 50000;
@@ -213,6 +260,7 @@
     if (stamp >= chartReturnAt) showVoyage();
   }
   function navigate(action) {
+    if (!playing || !session.check()) return false;
     try {
       state = E.act(state, { type: 'navigate', ...action });
       save();
@@ -222,11 +270,13 @@
     } catch (error) { toast(error.message, true); return false; }
   }
   function steer(heading) {
+    if (!playing || !session.check()) return false;
     try {
       state = E.act(state, { type: 'steer', heading }); save(); render(); return true;
     } catch (error) { toast(error.message, true); return false; }
   }
   function frame(stamp) {
+    if (playing) session.check();
     const dt = Math.min(.15, Math.max(0, (stamp - previousFrame) / 1000));
     previousFrame = stamp;
     if (playing && state.navigation?.running && dt > 0 && !document.hidden) {
@@ -244,10 +294,11 @@
     syncSound();
     requestAnimationFrame(frame);
   }
-  document.addEventListener('click', event => {
+  document.addEventListener('click', async event => {
     const button = event.target.closest('button');
     if (button?.disabled) return;
     if (!button) return;
+    if (button.closest('#game-screen') && (!playing || !session.check())) return;
     if (button.hasAttribute('data-sound')) { sound.toggle(); return; }
     if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
@@ -264,12 +315,12 @@
       $('service-title').focus({ preventScroll: true }); return;
     }
     if (button.id === 'start-button') {
-      playing = true; save(); render(); sound.unlock(); focusScreen('game-screen'); return;
+      if (await beginSession()) focusScreen('game-screen'); return;
     }
     if (button.id === 'return-menu-button') {
       $('service-dialog').close();
       if (state.navigation?.running) state = E.act(state, { type: 'pause' });
-      playing = false; save(); render();
+      save(); session.release(); playing = false; render();
       clearTimeout(toastTimer); $('toast').hidden = true;
       focusScreen('entry-title'); return;
     }
@@ -331,11 +382,9 @@
     }
     if (button.id === 'reset-button') { $('reset-dialog').showModal(); return; }
     if (button.id === 'confirm-reset') {
-      state = E.initial(); tab = 'market'; side = 'buy';
-      E.GOODS.forEach(g => { quantities[g.id] = 1; });
-      playing = true; seaView = 'sea';
-      syncSound(); sound.unlock();
-      $('reset-dialog').close(); save(); render(); chart.reset(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
+      if (await beginSession(true)) {
+        $('reset-dialog').close(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
+      }
     }
   });
   document.addEventListener('change', event => {
@@ -348,9 +397,6 @@
     event.preventDefault();
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
     tab = tabs[next].dataset.tab; renderDock(); tabs[next].focus();
-  });
-  window.addEventListener('storage', event => {
-    if (event.key === saveKey) toast('다른 탭에서 항해 기록이 변경되었습니다. 기록 충돌을 피하려면 한 탭에서 플레이해 주세요.', true);
   });
   if (testMode) {
     const banner = document.createElement('aside');
@@ -382,11 +428,20 @@
   $('chart-screen').addEventListener('wheel', () => { if (chartReturnAt) chartReturnAt = performance.now() + 3000; }, { passive: true });
   $('chart-screen').addEventListener('keydown', () => { if (chartReturnAt) chartReturnAt = performance.now() + 3000; });
   document.addEventListener('visibilitychange', () => {
+    if (playing) session.check();
     if (document.hidden) { cancelChartPeek(); chartPointers.clear(); }
-    if (document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
+    if (playing && document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
     syncSound();
   });
-  window.addEventListener('pagehide', () => { sound.update({ active: false, sea: false, moving: false }); if (hasVoyage) save(); });
+  window.addEventListener('pagehide', () => {
+    sound.update({ active: false, sea: false, moving: false });
+    if (playing && session.check()) {
+      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      save();
+    }
+    session.release(); playing = false;
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) render(); });
   requestAnimationFrame(frame);
   render();
   $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';

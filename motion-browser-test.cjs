@@ -52,6 +52,7 @@ const E = require('./engine.js');
     await seed(mobile);
     const phone = await mobile.newPage(); phone.on('pageerror', error => errors.push(error.message));
     await phone.goto(url); await phone.locator('#start-button').tap();
+    await phone.locator('#voyage-screen').waitFor({ state: 'visible' });
     const box = await phone.locator('#voyage-canvas').boundingBox();
     await phone.touchscreen.tap(box.x + box.width * .5, box.y + box.height * .82);
     await phone.waitForFunction(() => { const s = JSON.parse(localStorage.getItem(Windward.KEY)); return s.motion.speed > 0 && s.motion.speed < .6; });
