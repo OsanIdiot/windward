@@ -3,35 +3,32 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const config = require('./audio-config.js');
-function player(saved, fail = false) {
-  let written;
-  const root = { WindwardAudio: config, AudioContext: class {} };
-  vm.runInNewContext(fs.readFileSync(require.resolve('./audio.js'), 'utf8'), {
-    window: root, localStorage: { getItem: key => key === 'windward-audio-volumes' ? saved : 'off', setItem: (key, value) => { if (fail) throw Error('blocked'); written = value; } }
-  });
-  return { audio: root.createSeaAudio(), saved: () => JSON.parse(written) };
-}
-test('volume settings default safely and keep valid zero values', () => {
-  for (const value of [null, 'invalid', 'null', '{"master":-1,"water":"0.3","bell":2}']) {
-    const { audio } = player(value);
-    assert.equal(JSON.stringify(audio.getVolumes()), '{"master":1,"water":1,"bell":1}');
+
+test('fixed mix matches the selected 100 / 15 / 20 slider levels', () => {
+  assert.equal(config.master, .45);
+  assert.ok(Math.abs(config.sfx.sounds.water.gain - .75 * .15) < 1e-12);
+  assert.ok(Math.abs(config.sfx.sounds.bell.gain - .8 * .2) < 1e-12);
+  assert.equal(config.sfx.sounds.wind.gain, 1);
+  assert.equal(config.sfx.sounds.sails.gain, .35);
+  assert.equal(config.sfx.sounds.gull.gain, .085);
+});
+test('legacy per-browser volume settings are ignored; sound on/off is retained', () => {
+  for (const enabled of ['on', 'off']) {
+    const reads = [], root = { WindwardAudio: config, AudioContext: class {} };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./audio.js'), 'utf8'), {
+      window: root, localStorage: { getItem(key) { reads.push(key); return key === 'windward-audio-enabled' ? enabled : '{"master":0,"water":0,"bell":0}'; } }
+    });
+    const audio = root.createSeaAudio();
+    assert.equal(audio.enabled(), enabled === 'on');
+    assert.equal(reads.includes('windward-audio-volumes'), false);
+    assert.equal(audio.setVolumes, undefined);
+    assert.equal(audio.getVolumes, undefined);
   }
-  const { audio } = player('{"master":0,"water":0.4,"bell":0.2}');
-  assert.equal(audio.getVolumes().master, 0); assert.equal(audio.getVolumes().water, .4);
-  assert.equal(audio.enabled(), false);
 });
-test('volume updates persist, do not mutate defaults or expose state, and reject invalid input', () => {
-  const { audio, saved } = player(null);
-  assert.equal(audio.setVolumes({ master: .5, water: .2, bell: 0 }), true);
-  assert.deepEqual(saved(), { master: .5, water: .2, bell: 0 });
-  audio.setVolumes({ master: NaN, water: -1, bell: Infinity, wind: .3 });
-  assert.deepEqual(saved(), { master: .5, water: .2, bell: 0 });
-  audio.getVolumes().master = 1;
-  assert.equal(audio.getVolumes().master, .5);
-  assert.equal(config.master, .45); assert.equal(config.sfx.sounds.water.gain, .75);
-});
-test('blocked storage keeps the live setting and reports failure without unmuting', () => {
-  const { audio } = player(null, true);
-  assert.equal(audio.setVolumes({ water: .15 }), false);
-  assert.equal(audio.getVolumes().water, .15); assert.equal(audio.enabled(), false);
+test('volume editor UI and its event handlers are removed', () => {
+  const html = fs.readFileSync(require.resolve('./index.html'), 'utf8');
+  const app = fs.readFileSync(require.resolve('./app.js'), 'utf8');
+  assert.doesNotMatch(html, /volume-dialog|data-volume-settings|data-volume=/);
+  assert.doesNotMatch(app, /renderVolumeSettings|setVolumes|getVolumes/);
+  assert.match(html, /data-sound/);
 });

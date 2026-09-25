@@ -74,11 +74,11 @@ test('all current sounds are effects and music is a separate empty bank', () => 
 });
 
 test('water is quieter at every speed and the arrival bell is reduced independently', () => {
-  assert.equal(config.sfx.sounds.water.gain, .75);
-  assert.equal(config.sfx.sounds.bell.gain, .8);
+  assert.equal(config.sfx.sounds.water.gain, .1125);
+  assert.equal(config.sfx.sounds.bell.gain, .16);
   for (const speed of [0, .1, .5, 1]) {
     const previous = .08 + .92 * speed;
-    assert.equal(previous * config.sfx.sounds.water.gain / previous, .75);
+    assert.ok(Math.abs(previous * config.sfx.sounds.water.gain - previous * .75 * .15) < 1e-12);
   }
   assert.equal(config.sfx.sounds.wind.gain, 1);
   assert.equal(config.sfx.sounds.gull.gain, .085);

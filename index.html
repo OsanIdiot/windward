@@ -4,22 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f3eee3">
-  <meta name="application-version" content="0.1.4">
+  <meta name="application-version" content="0.1.5">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
   <script>if (['port', 'sea'].includes(new URLSearchParams(location.search).get('screen'))) document.documentElement.classList.add('page-boot');</script>
-  <link rel="stylesheet" href="style.css?v=0.1.4">
+  <link rel="stylesheet" href="style.css?v=0.1.5">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=0.1.2" defer></script>
   <script src="sea-ui.js?v=0.1.3" defer></script>
   <script src="voyage-camera.js?v=32" defer></script>
   <script src="voyage-ui.js?v=0.1.3" defer></script>
-  <script src="audio-config.js?v=0.1.3" defer></script>
-  <script src="audio.js?v=0.1.4" defer></script>
+  <script src="audio-config.js?v=0.1.5" defer></script>
+  <script src="audio.js?v=0.1.5" defer></script>
   <script src="play-session.js?v=33" defer></script>
   <script src="discovery-ui.js?v=0.1.2" defer></script>
-  <script src="app.js?v=0.1.4" defer></script>
+  <script src="app.js?v=0.1.5" defer></script>
 </head>
 <body>
   <div id="page-transition" class="page-transition" role="status" aria-live="polite" hidden><span id="page-transition-message">화면을 새로 불러오고 있습니다…</span><small>저장한 항해 기록을 이어갑니다.</small></div>
@@ -57,14 +57,14 @@
     <div class="entry-body">
       <div class="entry-art" aria-hidden="true"><div class="entry-sun"></div><div class="entry-orbit"></div><svg viewBox="0 0 200 160"><use href="#ship-art"/></svg><span>ATLANTIC & MEDITERRANEAN · 1550</span></div>
       <section class="intro"><p class="eyebrow">TRADE, EXPLORE & FIND YOUR OWN WAY</p><h1 id="entry-title" tabindex="-1">바람이 이끄는 곳으로.</h1><p class="intro-copy">교역으로 꿈을 키우고,<br>탐험으로 바다의 이야기를 찾으세요.</p>
-        <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><div class="entry-sound-controls"><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><button type="button" class="text-button" data-volume-settings aria-haspopup="dialog" aria-controls="volume-dialog">음량 설정</button></div><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
+        <div class="entry-actions"><p id="entry-summary" class="hint"></p><button id="start-button" class="primary">항해 시작 <span aria-hidden="true">→</span></button><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><div class="save-status" id="save-status">이 브라우저에 자동 저장</div></div>
       </section>
     </div>
     <p id="session-notice" class="market-tip" role="status" hidden></p>
-    <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험 · v0.1.4</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
+    <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험 · v0.1.5</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
   </section>
   <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>
-    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><button type="button" class="text-button" data-volume-settings aria-haspopup="dialog" aria-controls="volume-dialog">음량</button><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
+    <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
     <section class="game-stats" aria-label="항해 현황">
       <div><svg class="icon"><use href="#i-coin"/></svg><span><small>보유 금화</small><strong id="gold">700 <em>G</em></strong></span></div>
       <div><svg class="icon"><use href="#i-box"/></svg><span><small>화물 적재</small><strong id="cargo-count">0 <em>/ 24</em></strong></span></div>
@@ -126,14 +126,6 @@
   </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <dialog id="volume-dialog" class="volume-dialog" aria-labelledby="volume-title">
-    <div class="volume-heading"><h2 id="volume-title">음량 설정</h2><button class="secondary" data-close="volume-dialog">닫기</button></div>
-    <p class="hint">소리를 들으며 조절하세요. 항해 중에는 배가 계속 움직입니다.</p>
-    <div class="volume-row"><label for="volume-master">전체 효과음</label><output id="volume-master-value" for="volume-master">100%</output><input id="volume-master" data-volume="master" type="range" min="0" max="100" step="5" value="100"></div>
-    <div class="volume-row"><label for="volume-water">바다 · 물살</label><output id="volume-water-value" for="volume-water">100%</output><input id="volume-water" data-volume="water" type="range" min="0" max="100" step="5" value="100"></div>
-    <div class="volume-row"><label for="volume-bell">입항 종소리</label><output id="volume-bell-value" for="volume-bell">100%</output><input id="volume-bell" data-volume="bell" type="range" min="0" max="100" step="5" value="100"></div>
-    <p id="volume-save-note" class="hint" role="status"></p><button id="volume-reset" class="text-button">기본 음량으로</button>
-  </dialog>
   <dialog id="sea-atlas-dialog" class="goals-dialog sea-atlas-dialog" aria-labelledby="sea-atlas-title">
     <div class="goals-header"><h2 id="sea-atlas-title" tabindex="-1">망원경과 발견 도감</h2><button class="secondary" data-close="sea-atlas-dialog">닫기</button></div>
     <div class="sea-atlas-body"><p class="eyebrow">A LITTLE WONDER AT SEA</p><p id="sea-atlas-count" tabindex="-1" role="status"></p><p class="hint">주변 단서를 찾아 접근한 뒤 정지·조사하세요. 살펴보는 동안에도 항해는 계속됩니다. 발견물은 게임 속 창작 이야기입니다.</p><button id="sea-atlas-scan" class="secondary">주변 다시 살펴보기</button><div id="sea-atlas-list"></div></div>

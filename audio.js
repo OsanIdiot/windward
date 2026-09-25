@@ -2,15 +2,7 @@
   'use strict';
   root.createSeaAudio = function ({ changed = () => {}, notify = () => {} } = {}) {
     const key = 'windward-audio-enabled', config = root.WindwardAudio;
-    const volumeKey = 'windward-audio-volumes';
-    let volumes = { master: 1, water: 1, bell: 1 };
-    const validVolume = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
-    try {
-      const saved = JSON.parse(localStorage.getItem(volumeKey));
-      for (const name of Object.keys(volumes)) if (validVolume(saved?.[name])) volumes[name] = saved[name];
-    } catch (_) {}
     const effects = config?.sfx?.sounds;
-    const effectGain = name => config.sfx.gain * effects[name].gain * (volumes[name] ?? 1);
     const AudioContext = root.AudioContext || root.webkitAudioContext;
     const loops = new Map(), buffers = new Map(), pending = new Map(), voices = new Set();
     let enabled = true, context, master, failed = !AudioContext || !effects, resuming = false, resumeAttempt = 0;
@@ -86,16 +78,16 @@
       const source = context.createBufferSource(), gain = context.createGain();
       const pan = context.createStereoPanner ? context.createStereoPanner() : null;
       source.buffer = buffers.get(name); source.playbackRate.value = rate;
-      gain.gain.value = effectGain(name) * volume;
+      gain.gain.value = config.sfx.gain * effects[name].gain * volume;
       source.connect(gain);
       if (pan) { pan.pan.value = panValue; gain.connect(pan); pan.connect(master); }
       else gain.connect(master);
-      const voice = { source, gain, group, name, volume, stopping: false };
+      const voice = { source, gain, group, stopping: false };
       voices.add(voice);
       source.onended = () => { source.disconnect(); gain.disconnect(); pan?.disconnect(); voices.delete(voice); };
       source.start();
     }
-    function sync(fromGesture = false, volumeFade) {
+    function sync(fromGesture = false) {
       if (!context || failed) return;
       if (!enabled || !scene.active) {
         master.gain.cancelScheduledValues(context.currentTime); master.gain.setValueAtTime(0, context.currentTime);
@@ -103,8 +95,7 @@
         if (context.state === 'running') context.suspend().then(() => { if (enabled && scene.active) sync(); }).catch(() => {});
         report(); return;
       }
-      fade(master.gain, config.master * volumes.master, volumeFade ?? .6);
-      for (const voice of voices) if (!voice.stopping) fade(voice.gain.gain, effectGain(voice.name) * voice.volume, volumeFade ?? .12);
+      fade(master.gain, config.master);
       const speed = scene.moving ? scene.speed : 0;
       const levels = { water: .08 + .92 * speed, wind: .4 + .6 * speed, sails: speed, hull: speed };
       for (const [name, loop] of loops) {
@@ -112,7 +103,7 @@
           loop.source = context.createBufferSource(); loop.source.buffer = buffers.get(name);
           loop.source.loop = true; loop.source.connect(loop.gain); loop.source.start();
         }
-        fade(loop.gain.gain, scene.sea ? (levels[name] ?? speed) * effectGain(name) : 0, volumeFade ?? (name === 'wind' ? 1.5 : .9));
+        fade(loop.gain.gain, scene.sea ? config.sfx.gain * (levels[name] ?? speed) * effects[name].gain : 0, name === 'wind' ? 1.5 : .9);
       }
       if (!scene.sea) { stop('gull'); nextGullAt = 0; }
       else stop('bell');
@@ -171,14 +162,7 @@
       // Never replay a stale arrival after slow loading, leaving port or toggling sound.
       if (buffer && request === bellRequest && !scene.sea && performance.now() - requestedAt < 1500) play('bell', 'bell');
     }
-    function setVolumes(next) {
-      for (const name of Object.keys(volumes)) if (validVolume(next?.[name])) volumes[name] = next[name];
-      let saved = true;
-      try { localStorage.setItem(volumeKey, JSON.stringify(volumes)); } catch (_) { saved = false; }
-      sync(false, .12);
-      return saved;
-    }
     report();
-    return { update, unlock, toggle, arrival, setVolumes, getVolumes: () => ({ ...volumes }), enabled: () => enabled && !failed, ready: () => enabled && scene.active && context?.state === 'running' };
+    return { update, unlock, toggle, arrival, enabled: () => enabled && !failed, ready: () => enabled && scene.active && context?.state === 'running' };
   };
 })(window);

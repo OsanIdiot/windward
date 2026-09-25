@@ -148,14 +148,6 @@
       return true;
     } catch (error) { toast(error.message, true); return false; }
   }
-  function renderVolumeSettings() {
-    const levels = sound.getVolumes();
-    for (const [name, value] of Object.entries(levels)) {
-      $(`volume-${name}`).value = Math.round(value * 100);
-      $(`volume-${name}-value`).textContent = `${Math.round(value * 100)}%`;
-    }
-    $('volume-save-note').textContent = '이 브라우저에 저장됩니다. 100%는 현재 기본 음량, 0%는 무음입니다.';
-  }
   function maxQuantity(good) {
     return side === 'buy' ? Math.max(0, Math.min(E.SHIPS[state.ship].capacity - E.used(state), Math.floor(state.gold / E.price(state, good).buy))) : state.cargo[good];
   }
@@ -364,15 +356,6 @@
     if (!button) return;
     if (button.closest('#game-screen') && (!playing || !session.check())) return;
     if (button.hasAttribute('data-sound')) { pendingPortBell = 0; sound.toggle(); return; }
-    if (button.hasAttribute('data-volume-settings')) {
-      renderVolumeSettings(); $('volume-dialog').showModal(); $('volume-master').focus({ preventScroll: true }); return;
-    }
-    if (button.id === 'volume-reset') {
-      const saved = sound.setVolumes({ master: 1, water: 1, bell: 1 });
-      renderVolumeSettings();
-      if (!saved) $('volume-save-note').textContent = '설정을 저장할 수 없어 이 탭에서만 적용합니다.';
-      return;
-    }
     if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
@@ -452,13 +435,6 @@
         $('reset-dialog').close(); focusScreen('game-screen'); toast('리스본에서 새로운 항해가 시작되었습니다.');
       }
     }
-  });
-  document.addEventListener('input', event => {
-    const name = event.target.dataset.volume;
-    if (!['master', 'water', 'bell'].includes(name)) return;
-    const saved = sound.setVolumes({ [name]: Number(event.target.value) / 100 });
-    $(`volume-${name}-value`).textContent = `${Math.round(sound.getVolumes()[name] * 100)}%`;
-    $('volume-save-note').textContent = saved ? '음량을 저장했습니다. 재생 중인 소리에 바로 적용됩니다.' : '설정을 저장할 수 없어 이 탭에서만 적용합니다.';
   });
   document.addEventListener('change', event => {
     if (event.target.dataset.quantity) updateQuantity(event.target.dataset.quantity, Number(event.target.value));
