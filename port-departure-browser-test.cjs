@@ -66,6 +66,7 @@ const E = require('./engine.js');
         return !s.navigation && Windward.nearbyPort(s)?.id === 'cedar';
       });
       await click('#voyage-enter-port');
+      await page.locator('#dock').waitFor({ state: 'visible' });
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem(Windward.KEY)).port), 'cedar');
       await context.close();
     }

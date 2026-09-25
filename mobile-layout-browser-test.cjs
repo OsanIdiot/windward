@@ -20,6 +20,7 @@ const path = require('node:path');
         await page.reload();
       }
       await page.locator('#start-button').tap();
+      await page.locator('#dock').waitFor({ state: 'visible' });
       const checkHeight = async (screen, allowance = 0) => {
         const size = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight, vh: innerHeight, vw: innerWidth }));
         assert.ok(size.w <= size.vw, `${screen}: no horizontal overflow at ${width}`);
@@ -39,6 +40,7 @@ const path = require('node:path');
       await page.locator('#service-dialog').evaluate(el => { el.scrollTop = el.scrollHeight; });
       await page.locator('#close-service').tap();
       await page.locator('#harbor-button').tap();
+      await page.locator('#voyage-screen').waitFor({ state: 'visible' });
       await checkHeight('sailing', width > height ? 160 : 0);
       await page.locator('.helm-help summary').tap();
       await page.locator('.helm-help p').last().scrollIntoViewIfNeeded();
@@ -98,6 +100,7 @@ const path = require('node:path');
       });
       await page.addInitScript(state => localStorage.setItem('windward-v1',JSON.stringify(state)), offshore);
       await page.reload(); await page.locator('#start-button').tap();
+      await page.locator('#voyage-screen').waitFor({ state: 'visible' });
       for (const id of ['voyage-rescue','rescue-button']) {
         if (id === 'rescue-button') await page.locator('#open-chart-button').tap();
         const fit = await page.locator('#'+id).evaluate(button => {

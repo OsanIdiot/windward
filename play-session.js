@@ -14,16 +14,19 @@
       try { onYield(); } finally { release(); }
       return false;
     }
-    async function claim() {
+    async function claim(continuationToken = null) {
       if (!navigator.locks?.request) throw Error('이 브라우저에서는 안전한 탭 전환을 지원하지 않습니다. 최신 브라우저에서 열어 주세요.');
       if (check()) return true;
-      const ticket = crypto.randomUUID();
-      localStorage.setItem(requestKey, ticket);
+      const ticket = continuationToken || crypto.randomUUID();
+      // A document handoff must never evict a newer player in another tab.
+      if (continuationToken) {
+        if (localStorage.getItem(requestKey) !== ticket) return false;
+      } else localStorage.setItem(requestKey, ticket);
       pending = ticket;
       return new Promise((resolve, reject) => {
-        navigator.locks.request(`${key}:writer`, async () => {
+        navigator.locks.request(`${key}:writer`, { ifAvailable: !!continuationToken }, async lock => {
           // Only the most recent Start/Continue request may become the writer.
-          if (pending !== ticket || localStorage.getItem(requestKey) !== ticket) { resolve(false); return; }
+          if (!lock || pending !== ticket || localStorage.getItem(requestKey) !== ticket) { resolve(false); return; }
           const held = new Promise(done => { unlock = done; });
           owner = true; token = ticket; pending = null;
           resolve(true);
@@ -34,6 +37,6 @@
     window.addEventListener('storage', event => {
       if (event.key === requestKey || event.key === null) check();
     });
-    return { claim, check, release, canWrite: () => owner };
+    return { claim, check, release, canWrite: () => owner, continuationToken: () => owner ? token : null };
   };
 })(window);

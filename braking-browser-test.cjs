@@ -48,14 +48,16 @@ const E = require('./engine.js');
         localStorage.setItem(Windward.KEY, JSON.stringify(s));
       });
       await click('#start-button'); await page.locator('#game-screen').waitFor({ state: 'visible' });
-      await click('#pause-sailing');
+      await click('#voyage-pause');
       await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem(Windward.KEY)); return s.motion.braking && s.navigation?.running; });
       await page.waitForFunction(() => document.getElementById('voyage-speed').textContent.includes('감속 중'));
       assert.match(await page.locator('#voyage-speed').innerText(), /감속 중/);
       assert.equal(await page.locator('#voyage-enter-port').count(), 0, 'Cannot dock while still drifting');
       await page.waitForFunction(() => !JSON.parse(localStorage.getItem(Windward.KEY)).navigation);
       assert.equal((await saved()).motion.speed, 0);
-      await click('#voyage-enter-port'); assert.equal((await saved()).port, 'lume');
+      await click('#voyage-enter-port');
+      await page.locator('#dock').waitFor({ state: 'visible' });
+      assert.equal((await saved()).port, 'lume');
       await context.close();
     }
     assert.deepEqual(errors, []);

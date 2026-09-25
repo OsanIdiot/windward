@@ -3,6 +3,7 @@
   const E = window.Windward;
   const testMode = new URLSearchParams(location.search).get('test') === '1';
   const saveKey = testMode ? `${E.KEY}-test` : E.KEY;
+  const transferKey = `${saveKey}:page-transfer`;
   const saveLabel = testMode ? '테스트 기록 별도 저장' : '이 브라우저에 자동 저장';
   const $ = id => document.getElementById(id);
   const number = value => value.toLocaleString('ko-KR');
@@ -12,7 +13,7 @@
   let previousFrame = 0, lastSave = 0;
   let chartReturnAt = 0;
   const chartPointers = new Set();
-  let playing = false, hasVoyage = false;
+  let playing = false, hasVoyage = false, pageLeaving = false, pendingPortBell = 0;
   let storageOK = true, storageMessage = '';
   const quantities = Object.fromEntries(E.GOODS.map(g => [g.id, 1]));
   try {
@@ -31,34 +32,95 @@
     $('session-notice').textContent = message;
     $('session-notice').hidden = !message;
   }
+  function pageLoading(message) {
+    $('page-transition-message').textContent = message;
+    $('page-transition').hidden = !message;
+    document.documentElement.classList.remove('page-boot');
+  }
+  function consumeTransfer() {
+    try {
+      const raw = sessionStorage.getItem(transferKey);
+      sessionStorage.removeItem(transferKey);
+      const transfer = raw ? JSON.parse(raw) : null;
+      const screen = new URLSearchParams(location.search).get('screen');
+      if (transfer && transfer.saveKey === saveKey && transfer.screen === screen && ['port', 'sea'].includes(screen)
+        && typeof transfer.token === 'string' && transfer.token.length > 0
+        && Date.now() - transfer.at >= 0 && Date.now() - transfer.at < 60000) return transfer;
+    } catch (_) {}
+    return null;
+  }
+  function openGamePage(next, { arrived = false, reset = false, entering = false } = {}) {
+    if (pageLeaving || !playing || !session.check()) return false;
+    const before = state, screen = next.screen === 'port' ? 'port' : 'sea';
+    const url = new URL(location.href); url.searchParams.set('screen', screen);
+    try {
+      const token = session.continuationToken();
+      sessionStorage.setItem(transferKey, JSON.stringify({ saveKey, screen, token, at: Date.now(), arrived, reset, entering, port: next.port }));
+      state = next;
+      if (!save()) throw Error('기록을 저장하지 못해 화면 이동을 취소했습니다. 저장 공간과 브라우저 설정을 확인해 주세요.');
+      pageLeaving = true; pendingPortBell = 0; cancelChartPeek(); chartPointers.clear();
+      document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+      sound.update({ active: false, sea: false, moving: false });
+      pageLoading(screen === 'port' ? '항구를 새로 불러오고 있습니다…' : '항해 화면을 새로 불러오고 있습니다…');
+      location.assign(url.href);
+      return true;
+    } catch (error) {
+      state = before; pageLeaving = false;
+      try { sessionStorage.removeItem(transferKey); } catch (_) {}
+      pageLoading(''); render(); toast(error.message || '화면 이동을 준비하지 못했습니다.', true);
+      return false;
+    }
+  }
+  function changeGamePage(action) {
+    if (pageLeaving || !playing || !session.check()) return;
+    try {
+      const next = E.act(state, action);
+      openGamePage(next, { arrived: action.type === 'enter-port' && !state.port, entering: action.type === 'enter-port' });
+    } catch (error) { toast(error.message, true); }
+  }
   function yieldSession() {
     if (playing) {
       if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
       save();
     }
-    playing = false;
+    playing = false; pendingPortBell = 0; pageLoading('');
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     clearTimeout(toastTimer); $('toast').hidden = true;
     cancelChartPeek(); chartPointers.clear(); render();
     sessionNotice('다른 탭에서 진행 중입니다. 이 탭의 항해와 저장을 중지했습니다. 여기서 이어하기를 누르면 최신 기록을 가져옵니다.');
   }
-  async function beginSession(reset = false) {
-    if (starting) return false;
+  async function beginSession(reset = false, transfer = null) {
+    if (starting || pageLeaving) return false;
     starting = true; $('start-button').disabled = true; $('confirm-reset').disabled = true;
     sessionNotice('최신 항해 기록을 확인하고 있습니다. 다른 탭이 멈추면 이어집니다. 계속 기다리는 경우 기존 게임 탭을 닫아 주세요.');
     // Unlock audio during the gesture, before waiting for another tab to finish saving.
     sound.update({ active: true, sea: false, moving: false }); sound.unlock();
     try {
-      if (!await session.claim() || !session.check()) {
+      if (!await session.claim(transfer?.token) || !session.check()) {
         sessionNotice('다른 탭에서 진행 중입니다. 이 탭에서 플레이하려면 이어하기를 눌러 주세요.');
         return false;
       }
       const saved = reset ? null : localStorage.getItem(saveKey) || (testMode ? localStorage.getItem(E.KEY) : null);
       const latest = saved ? E.migrate(JSON.parse(saved)) : E.initial();
       if (!latest) throw Error('저장 기록을 읽을 수 없습니다. 새 항해를 시작하려면 초기화를 확인해 주세요.');
+      if (transfer && ((latest.screen === 'port' ? 'port' : 'sea') !== transfer.screen || latest.port !== transfer.port)) {
+        throw Error('화면 이동 중 기록이 바뀌었습니다. 이어하기로 최신 기록을 다시 열어 주세요.');
+      }
       state = latest; playing = true;
       if (reset) { tab = 'market'; side = 'buy'; seaView = 'sea'; E.GOODS.forEach(g => { quantities[g.id] = 1; }); }
-      save(); render(); chart.reset(); voyage.reset(); sessionNotice('');
+      if (!transfer) {
+        if (!openGamePage(state, { reset })) {
+          playing = false; session.release(); render();
+          sessionNotice('저장 또는 화면 이동을 준비하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.');
+        }
+        return false;
+      }
+      side = transfer.arrived ? 'sell' : 'buy';
+      if (transfer.arrived) tab = E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : 'market';
+      render(); chart.reset(); voyage.reset(); sessionNotice('');
+      if (transfer.entering && sound.enabled()) pendingPortBell = performance.now() + 2000;
+      if (transfer.arrived) toast(state.log[0]);
+      if (transfer.reset) toast('리스본에서 새로운 항해가 시작되었습니다.');
       return true;
     } catch (error) {
       playing = false; session.release(); render();
@@ -66,7 +128,7 @@
       return false;
     } finally {
       starting = false; $('start-button').disabled = false; $('confirm-reset').disabled = false;
-      syncSound();
+      if (!pageLeaving) { pageLoading(''); syncSound(); }
     }
   }
 
@@ -83,14 +145,15 @@
     toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4300);
   }
   function save() {
-    if (!session.canWrite()) return;
+    if (!session.canWrite()) return false;
     hasVoyage = true;
     try { localStorage.setItem(saveKey, JSON.stringify(state)); storageOK = true; }
     catch (_) { storageOK = false; }
     $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
+    return storageOK;
   }
   function perform(action) {
-    if (!playing || !session.check()) return false;
+    if (pageLeaving || !playing || !session.check()) return false;
     try {
       const wonBefore = state.won;
       const adventureBefore = state.adventureWon;
@@ -235,7 +298,7 @@
     syncSound();
   }
   function syncSound() {
-    sound?.update({ active: playing && !document.hidden, sea: state.screen === 'chart', moving: !!state.navigation?.running, speed: state.navigation?.running ? state.motion?.speed ?? 1 : 0, turning: !!state.motion?.turning });
+    sound?.update({ active: playing && !pageLeaving && !document.hidden, sea: state.screen === 'chart', moving: !!state.navigation?.running, speed: state.navigation?.running ? state.motion?.speed ?? 1 : 0, turning: !!state.motion?.turning });
   }
   function focusScreen(id) {
     $(id).focus({ preventScroll: true });
@@ -261,7 +324,7 @@
     if (stamp >= chartReturnAt) showVoyage();
   }
   function navigate(action) {
-    if (!playing || !session.check()) return false;
+    if (pageLeaving || !playing || !session.check()) return false;
     try {
       state = E.act(state, { type: 'navigate', ...action });
       save();
@@ -271,12 +334,13 @@
     } catch (error) { toast(error.message, true); return false; }
   }
   function steer(heading) {
-    if (!playing || !session.check()) return false;
+    if (pageLeaving || !playing || !session.check()) return false;
     try {
       state = E.act(state, { type: 'steer', heading }); save(); render(); return true;
     } catch (error) { toast(error.message, true); return false; }
   }
   function frame(stamp) {
+    if (pageLeaving) { requestAnimationFrame(frame); return; }
     if (playing) session.check();
     const dt = Math.min(.15, Math.max(0, (stamp - previousFrame) / 1000));
     previousFrame = stamp;
@@ -293,14 +357,19 @@
     voyage?.render(stamp);
     updateChartPeek(stamp);
     syncSound();
+    if (pendingPortBell) {
+      if (!playing || !sound.enabled() || document.hidden || state.screen !== 'port' || stamp > pendingPortBell) pendingPortBell = 0;
+      else if (sound.ready()) { pendingPortBell = 0; sound.arrival(); }
+    }
     requestAnimationFrame(frame);
   }
   document.addEventListener('click', async event => {
+    if (pageLeaving) return;
     const button = event.target.closest('button');
     if (button?.disabled) return;
     if (!button) return;
     if (button.closest('#game-screen') && (!playing || !session.check())) return;
-    if (button.hasAttribute('data-sound')) { sound.toggle(); return; }
+    if (button.hasAttribute('data-sound')) { pendingPortBell = 0; sound.toggle(); return; }
     if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
@@ -321,14 +390,14 @@
     if (button.id === 'return-menu-button') {
       $('service-dialog').close();
       if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
-      save(); session.release(); playing = false; render();
+      save(); session.release(); playing = false; pendingPortBell = 0; render();
+      const entryUrl = new URL(location.href); entryUrl.searchParams.delete('screen'); history.replaceState(null, '', entryUrl.href);
       clearTimeout(toastTimer); $('toast').hidden = true;
       focusScreen('entry-title'); return;
     }
     if (button.id === 'harbor-button') {
       $('service-dialog').close();
-      seaView = 'sea';
-      if (perform({ type: 'show-chart' })) { chart.reset(); voyage.reset(); focusScreen('voyage-heading'); }
+      changeGamePage({ type: 'show-chart' });
       return;
     }
     if (button.id === 'open-chart-button' || button.id === 'mini-chart-button') {
@@ -340,14 +409,7 @@
       showVoyage(); return;
     }
     if (button.id === 'enter-port-button' || button.id === 'voyage-enter-port') {
-      const arrived = !state.port;
-      if (perform({ type: 'enter-port' })) {
-        sound.arrival();
-        side = arrived ? 'sell' : side;
-        tab = E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : 'market';
-        renderDock(); focusScreen('port-name');
-        if (arrived) toast(state.log[0]);
-      }
+      changeGamePage({ type: 'enter-port' });
       return;
     }
     if (button.dataset.openTab) {
@@ -442,9 +504,16 @@
     }
     session.release(); playing = false;
   });
-  window.addEventListener('pageshow', event => { if (event.persisted) render(); });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) { pageLeaving = false; pendingPortBell = 0; pageLoading(''); render(); }
+  });
   requestAnimationFrame(frame);
   render();
   $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
   if (storageMessage) toast(storageMessage);
+  const transfer = consumeTransfer();
+  if (transfer) {
+    pageLoading(transfer.screen === 'port' ? '항구를 새로 불러오고 있습니다…' : '항해 화면을 새로 불러오고 있습니다…');
+    beginSession(false, transfer).then(started => { if (started) focusScreen(state.screen === 'port' ? 'port-name' : 'voyage-heading'); });
+  } else pageLoading('');
 })();

@@ -158,6 +158,6 @@
       if (buffer && request === bellRequest && !scene.sea && performance.now() - requestedAt < 1500) play('bell', 'bell');
     }
     report();
-    return { update, unlock, toggle, arrival };
+    return { update, unlock, toggle, arrival, enabled: () => enabled && !failed, ready: () => enabled && scene.active && context?.state === 'running' };
   };
 })(window);

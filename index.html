@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=32">
+  <script>if (['port', 'sea'].includes(new URLSearchParams(location.search).get('screen'))) document.documentElement.classList.add('page-boot');</script>
+  <link rel="stylesheet" href="style.css?v=33">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=31" defer></script>
@@ -14,11 +15,12 @@
   <script src="voyage-camera.js?v=32" defer></script>
   <script src="voyage-ui.js?v=32" defer></script>
   <script src="audio-config.js?v=21" defer></script>
-  <script src="audio.js?v=21" defer></script>
-  <script src="play-session.js?v=30" defer></script>
-  <script src="app.js?v=31" defer></script>
+  <script src="audio.js?v=33" defer></script>
+  <script src="play-session.js?v=33" defer></script>
+  <script src="app.js?v=33" defer></script>
 </head>
 <body>
+  <div id="page-transition" class="page-transition" role="status" aria-live="polite" hidden><span id="page-transition-message">화면을 새로 불러오고 있습니다…</span><small>저장한 항해 기록을 이어갑니다.</small></div>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/></symbol>
