@@ -18,15 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run game tests
-        run: node --test engine.test.cjs navigation.test.cjs braking.test.cjs voyage-camera.test.cjs audio-assets.test.cjs audio-volume.test.cjs sea-discoveries.test.cjs wind.test.cjs rumors.test.cjs market-events.test.cjs
+        run: node --test engine.test.cjs navigation.test.cjs braking.test.cjs voyage-camera.test.cjs audio-assets.test.cjs audio-volume.test.cjs sea-discoveries.test.cjs wind.test.cjs rumors.test.cjs market-events.test.cjs visual-assets.test.cjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Prepare only browser assets
         run: |
           mkdir -p _site
-          cp index.html style.css geography.js navigation.js engine.js sea-ui.js voyage-camera.js voyage-ui.js audio-config.js audio.js play-session.js discovery-ui.js app.js LICENSE VERSION _site/
+          cp index.html style.css geography.js navigation.js engine.js sea-ui.js voyage-camera.js voyage-art.js voyage-ui.js audio-config.js audio.js play-session.js discovery-ui.js app.js LICENSE VERSION _site/
           mkdir -p _site/assets
           cp assets/harbor-town.webp _site/assets/
+          cp assets/merchant-caravel.webp _site/assets/
           mkdir -p _site/assets/audio
           cp assets/audio/RECORDING-CREDITS.md _site/assets/audio/
           find assets/audio -maxdepth 1 -type f \( -name '*.wav' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.m4a' \) -exec cp {} _site/assets/audio/ \;

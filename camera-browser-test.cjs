@@ -36,6 +36,13 @@ const delta = (a, b) => (a - b + 540) % 360 - 180;
           }
           return fill.apply(this, args);
         };
+        const drawImage = CanvasRenderingContext2D.prototype.drawImage;
+        CanvasRenderingContext2D.prototype.drawImage = function (source, ...args) {
+          if (this.canvas.id === 'voyage-canvas' && source.src?.includes('merchant-caravel.webp')) {
+            const m = this.getTransform(); cameraProbe.ship = { angle: Math.atan2(m.b, m.a) * 180 / Math.PI, x: m.e, y: m.f };
+          }
+          return drawImage.call(this, source, ...args);
+        };
       }, fixture);
       const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
       page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('favicon.ico')) errors.push(`${r.status()} ${r.url()}`); });

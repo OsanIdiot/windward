@@ -3,6 +3,7 @@
   root.createVoyageUI = function ({ read, steer, navigate, toggle, notify }) {
     const E = root.Windward, N = E.N, C = root.VoyageCamera, $ = id => document.getElementById(id);
     const canvas = $('voyage-canvas'), ctx = canvas.getContext('2d');
+    const art = root.createVoyageArt(ctx);
     const caption = canvas.parentElement.querySelector('.voyage-caption');
     const mini = $('voyage-minimap'), mc = mini.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -14,18 +15,20 @@
     const terrainRatio = 1.5;
     scenery.width = Math.ceil(N.G.width * terrainRatio); scenery.height = Math.ceil(N.G.height * terrainRatio);
     sc.scale(terrainRatio, terrainRatio); sc.lineJoin = 'round';
-    for (const [size, color] of [[26, '#50988a18'], [21, '#50988a22'], [16, '#66a59333'], [11, '#79b59b44'], [6, '#99c5a56b'], [2, '#e2d6a6']]) {
+    for (const [size, color] of [[29, '#40bdb018'], [23, '#40bdb028'], [17, '#63d3b647'], [11, '#86dcc177'], [6, '#b4dec29c'], [2, '#eed7a2']]) {
       sc.lineWidth = size; sc.strokeStyle = color; sc.stroke(land);
     }
-    sc.fillStyle = '#dcd8b8'; sc.fill(land, 'evenodd');
+    sc.fillStyle = '#a5b68b'; sc.fill(land, 'evenodd');
     const noise = (x, y) => { const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return n - Math.floor(n); };
     sc.save(); sc.clip(land, 'evenodd');
+    sc.lineWidth = 7; sc.strokeStyle = '#ecd6a2'; sc.stroke(land);
+    sc.lineWidth = 2.5; sc.strokeStyle = '#fff0c980'; sc.stroke(land);
     for (let y = 0; y < N.G.height; y += 12) for (let x = 0; x < N.G.width; x += 15) {
       const n = noise(x, y), px = x + n * 14, py = y + noise(y, x) * 10;
-      sc.fillStyle = n > .5 ? '#82957418' : '#f5e5bc38';
+      sc.fillStyle = n > .5 ? '#526f5840' : '#e9d7a64a';
       sc.beginPath(); sc.ellipse(px, py, 5 + n * 9, 3 + n * 3, -.35, 0, Math.PI * 2); sc.fill();
       if (n > .55) {
-        sc.fillStyle = '#627f6238';
+        sc.fillStyle = '#3e654a55';
         for(let j=0;j<4;j++){sc.beginPath();sc.ellipse(px+j*.9,py+Math.sin(j)*1.2,.6+n*.6,.45+n*.4,0,0,Math.PI*2);sc.fill();}
       }
     }
@@ -76,18 +79,7 @@
       C.transform(context, position, { x, y, zoom, bearing });
     }
     function water(bounds, time, wind) {
-      const { left, top, right, bottom } = bounds;
-      // World-anchored, irregular wavelets do not slide around when the camera turns.
-      const step = compact.matches ? 21 : 17;
-      for(let gy=Math.floor(top/14)*14;gy<bottom+14;gy+=14)for(let gx=Math.floor(left/step)*step;gx<right+step;gx+=step){
-        const n=noise(gx,gy), x=gx+n*step, y=gy+noise(gy,gx)*14;
-        const phase=time*.8+n*6.28, drift=Math.sin(phase)*(.35+wind.strength);
-        ctx.save(); ctx.translate(x,y); ctx.rotate(wind.from*Math.PI/180); ctx.translate(-x,-y);
-        ctx.strokeStyle=`rgba(209,233,216,${.06+.09*(.5+.5*Math.sin(phase))})`;ctx.lineWidth=.25+n*.18;
-        ctx.beginPath();ctx.moveTo(x,y+drift);ctx.bezierCurveTo(x+1,y-.8+drift,x+3,y+.7+drift,x+3+n*4,y+drift);ctx.stroke();
-        if(n>.77){ctx.strokeStyle=`rgba(246,239,199,${.09+.11*Math.max(0,Math.sin(phase+1))})`;ctx.lineWidth=.35;ctx.beginPath();ctx.moveTo(x+2,y+2);ctx.lineTo(x+4+n*2,y+2);ctx.stroke();}
-        ctx.restore();
-      }
+      art.water(bounds, time, wind, compact.matches);
     }
     function harbor(state) {
       if (!shore || N.distance(state.position, lisbon) > 210) return;
@@ -112,46 +104,13 @@
         const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
         if(length<.01||length>20)continue;
         const w=(.9+age*.7),px=-dy/length*w,py=dx/length*w;
-        ctx.fillStyle=`rgba(203,231,212,${strength*.16})`;
+        ctx.fillStyle=`rgba(140,229,215,${strength*.26})`;
         ctx.beginPath();ctx.moveTo(a.x+px,a.y+py);ctx.lineTo(b.x+px,b.y+py);ctx.lineTo(b.x-px,b.y-py);ctx.lineTo(a.x-px,a.y-py);ctx.closePath();ctx.fill();
-        if(i%2===0){ctx.strokeStyle=`rgba(231,242,221,${strength*.35})`;ctx.lineWidth=.35;ctx.beginPath();ctx.moveTo(b.x-px*.8,b.y-py*.8);ctx.quadraticCurveTo(b.x-dx*.5,b.y-dy*.5,b.x+px*.8,b.y+py*.8);ctx.stroke();}
+        if(i%2===0){ctx.strokeStyle=`rgba(231,253,236,${strength*.48})`;ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(b.x-px*.8,b.y-py*.8);ctx.quadraticCurveTo(b.x-dx*.5,b.y-dy*.5,b.x+px*.8,b.y+py*.8);ctx.stroke();}
       }
     }
     function ship(time, moving, tier, speed, wind) {
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate((heading - cameraBearing()) * Math.PI / 180);
-      const size = (width < 500 ? .8 : 1) * (1 + tier * .035); ctx.scale(size, size);
-      ctx.fillStyle = '#123e493d'; ctx.beginPath(); ctx.ellipse(8, 9, 29, 55, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#d4ead335'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.ellipse(0, 5, 30 + Math.sin(time) * 2, 57, 0, 0, Math.PI * 2); ctx.stroke();
-      if (moving) {
-        for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
-          ctx.strokeStyle = `rgba(237,246,225,${(.44 - i * .11) * speed})`; ctx.lineWidth = 2.8 - i * .6;
-          ctx.beginPath();ctx.moveTo(side*(8+i*2),-43+i*5);ctx.quadraticCurveTo(side*(28+i*5),5,side*(30+i*8),45+i*10);ctx.stroke();
-        }
-      }
-      ctx.save();
-      if (!reduced.matches) { ctx.translate(0, Math.sin(time * 1.5) * (.5 + wind.strength + speed * .4)); ctx.rotate(Math.sin(time * 1.4) * (.01 + wind.strength * .015 + speed * .008) + bank * .035); }
-      ctx.beginPath();ctx.moveTo(0,-53);ctx.bezierCurveTo(30,-24,27,32,13,48);ctx.lineTo(-13,48);ctx.bezierCurveTo(-27,32,-30,-24,0,-53);ctx.closePath();
-      ctx.fillStyle='#81583c';ctx.strokeStyle='#e3c992';ctx.lineWidth=3;ctx.fill();ctx.stroke();
-      ctx.beginPath();ctx.moveTo(0,-42);ctx.bezierCurveTo(20,-16,20,23,11,37);ctx.lineTo(-11,37);ctx.bezierCurveTo(-20,23,-20,-16,0,-42);ctx.fillStyle='#c4a674';ctx.fill();
-      ctx.strokeStyle='#92764f';ctx.lineWidth=1;
-      for(let y=-21;y<33;y+=9){ctx.beginPath();ctx.moveTo(-14,y);ctx.lineTo(14,y);ctx.stroke();}
-      ctx.fillStyle='#70543b';ctx.fillRect(-11,27,22,14);ctx.fillStyle='#d6bb83';ctx.fillRect(-8,30,16,7);
-      ctx.strokeStyle='#72533a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-56);ctx.lineTo(0,34);ctx.stroke();
-      for(const [y,spread] of [[-19,29],[13,24]]) {
-        const billow = speed * (3 + wind.strength * 3) + (reduced.matches ? 0 : Math.sin(time * 2 + y) * (.5 + wind.strength * 1.4 + Math.abs(bank)*2));
-        ctx.beginPath();ctx.moveTo(-spread,y-5);ctx.quadraticCurveTo(0,y-20-billow,spread,y-5);ctx.lineTo(spread-4,y+16);ctx.quadraticCurveTo(0,y+25+billow,-spread+4,y+16);ctx.closePath();
-        const cloth = ctx.createLinearGradient(-spread, y-20, spread, y+22);
-        cloth.addColorStop(0, '#d6c9a5'); cloth.addColorStop(.42, '#fff8de'); cloth.addColorStop(.7, '#f3e7c6'); cloth.addColorStop(1, '#b7a37b');
-        ctx.fillStyle=cloth;ctx.strokeStyle='#b79f78';ctx.lineWidth=1;ctx.fill();ctx.stroke();
-        ctx.strokeStyle='#a18b6144';ctx.lineWidth=.6;
-        for (const seam of [-.45, 0, .45]) { ctx.beginPath();ctx.moveTo(spread*seam,y-10);ctx.quadraticCurveTo(spread*seam+2,y+3,spread*seam,y+19);ctx.stroke(); }
-        ctx.beginPath();ctx.moveTo(-spread,y-5);ctx.lineTo(spread,y-5);ctx.strokeStyle='#7e6144';ctx.lineWidth=2;ctx.stroke();
-      }
-      ctx.strokeStyle='#674e3970';ctx.lineWidth=.7;
-      for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(0,-47);ctx.lineTo(side*21,25);ctx.lineTo(0,13);ctx.stroke();}
-      ctx.beginPath();ctx.moveTo(1,-47);ctx.lineTo(18,-43);ctx.lineTo(1,-36);ctx.closePath();ctx.fillStyle='#b56e50';ctx.fill();
-      ctx.restore();ctx.restore();
+      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, compact: width < 500, reduced: reduced.matches });
     }
     function renderMini(state) {
       mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);
@@ -211,16 +170,16 @@
       $('voyage-stage').dataset.camera = headingUp ? 'heading' : 'north';
       if(previous&&N.distance(previous,state.position)>35)trail=[];
       if(moving&&(!previous||N.distance(previous,state.position)>.8)){
-        const stern=43*(width<500?.8:1)*(1+state.ship*.035)/scale,angle=heading*Math.PI/180;
+        const stern=58*art.shipScale(width,height,cx,cy,heading-cameraBearing(),state.ship,width<500)/scale,angle=heading*Math.PI/180;
         trail.push({x:state.position.x-Math.sin(angle)*stern,y:state.position.y+Math.cos(angle)*stern,at:stamp,speed:state.motion?.speed??0});previous={...state.position};
       }
       trail=trail.filter(p=>stamp-p.at<8000).slice(-140);
       // Integrate phase so changing wind cannot amplify hours of elapsed page time.
       if (!reduced.matches) animationTime += dt * (.45 + wind.strength * .75);
       const time=reduced.matches?0:animationTime;
-      const gradient=ctx.createLinearGradient(0,0,width*.6,height);gradient.addColorStop(0,'#326b78');gradient.addColorStop(.5,'#397f83');gradient.addColorStop(1,'#285c6a');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
+      const gradient=ctx.createLinearGradient(0,0,width*.6,height);gradient.addColorStop(0,'#175571');gradient.addColorStop(.45,'#287f91');gradient.addColorStop(.72,'#248b94');gradient.addColorStop(1,'#164d70');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
       const light=ctx.createRadialGradient(width*.22,height*.16,0,width*.22,height*.16,width*.8);
-      light.addColorStop(0,'#c8dfb32a');light.addColorStop(1,'#b7d9bc00');ctx.fillStyle=light;ctx.fillRect(0,0,width,height);
+      light.addColorStop(0,'#c4efcd35');light.addColorStop(1,'#b7d9bc00');ctx.fillStyle=light;ctx.fillRect(0,0,width,height);
       ctx.save();worldTransform(ctx,state.position);
       ctx.lineWidth=.45;ctx.strokeStyle='#eef5d83b';
       const {left,top,right,bottom}=C.bounds(state.position,cameraView(),width,height);
@@ -228,6 +187,7 @@
       ctx.fillStyle='#dcd8b8';ctx.fill(land,'evenodd');
       ctx.drawImage(scenery,0,0,N.G.width,N.G.height);
       harbor(state);
+      art.shadows({left,top,right,bottom},time);
       ctx.save();ctx.clip(seaMask,'evenodd');wake(stamp);ctx.restore();
       ctx.restore();
       const visible=renderPorts(state);
