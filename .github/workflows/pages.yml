@@ -28,6 +28,7 @@ jobs:
           mkdir -p _site/assets
           cp assets/harbor-town.webp _site/assets/
           mkdir -p _site/assets/audio
+          cp assets/audio/RECORDING-CREDITS.md _site/assets/audio/
           find assets/audio -maxdepth 1 -type f \( -name '*.wav' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.m4a' \) -exec cp {} _site/assets/audio/ \;
       - uses: actions/upload-pages-artifact@v4
         with:

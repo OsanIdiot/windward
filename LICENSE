@@ -19,3 +19,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Third-party assets are excluded from this MIT license. In particular,
+assets/audio/hull-recorded.wav and assets/audio/turn-recorded-1.wav through
+turn-recorded-3.wav contain edited Pixabay recordings under the separate
+Pixabay Content License. See assets/audio/RECORDING-CREDITS.md for their
+creators, sources, modifications and restrictions. Geographic data is
+separately provided by Natural Earth in the public domain (see README.md).

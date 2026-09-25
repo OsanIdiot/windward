@@ -43,3 +43,24 @@ test('browser playback code contains no oscillator or PCM synthesis', () => {
   assert.doesNotMatch(source, /createOscillator|createBuffer\(|getChannelData|Math\.sin/);
   assert.match(source, /decodeAudioData/);
 });
+
+test('edited recorded creaks are mono PCM with headroom, fades and a quiet hull loop seam', () => {
+  for (const [key, seconds] of [['hull', 18], ['turn1', 2.9], ['turn2', 2.8], ['turn3', 2.3]]) {
+    const data = fs.readFileSync(path.join(__dirname, config.sounds[key].file));
+    assert.equal(data.readUInt16LE(20), 1);
+    assert.equal(data.readUInt16LE(22), 1);
+    assert.equal(data.readUInt32LE(24), 32000);
+    assert.equal(data.readUInt16LE(34), 16);
+    const n = (data.length - 44) / 2;
+    assert.equal(n / 32000, seconds);
+    let peak = 0, sum = 0;
+    for (let i = 0; i < n; i++) {
+      const x = data.readInt16LE(44 + i * 2) / 32768;
+      peak = Math.max(peak, Math.abs(x)); sum += x * x;
+      if (i < 640 || i >= n - 640) assert.equal(x, 0, key + ': quiet edge');
+    }
+    assert.ok(peak > .05 && peak <= (key === 'hull' ? .251 : .501), key + ': peak');
+    const rms = Math.sqrt(sum / n);
+    assert.ok(rms > .005 && rms <= (key === 'hull' ? .026 : .081), key + ': level');
+  }
+});
