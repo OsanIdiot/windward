@@ -10,7 +10,15 @@ const path = require('node:path');
       const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=23');
+      await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=24');
+      if (width === 412) {
+        await page.evaluate(() => {
+          const state = Windward.initial();
+          state.visited = Windward.PORTS.map(port => port.id);
+          localStorage.setItem(Windward.KEY, JSON.stringify(state));
+        });
+        await page.reload();
+      }
       await page.locator('#start-button').tap();
       const checkHeight = async (screen, allowance = 0) => {
         const size = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight, vh: innerHeight, vw: innerWidth }));
@@ -37,9 +45,19 @@ const path = require('node:path');
       await page.locator('.helm-help summary').tap();
       await page.locator('#open-chart-button').tap();
       assert.equal(await page.locator('#chart-details').evaluate(el => el.open), false);
-      await checkHeight('chart', width > height ? 220 : width === 320 ? 24 : 0);
-      await page.locator('.port-chip').last().scrollIntoViewIfNeeded();
-      assert.ok(await page.locator('.port-selector').evaluate(el => el.scrollLeft > 0), 'Port list scrolls horizontally');
+      await checkHeight('chart', width > height ? 280 : width === 320 ? 110 : 0);
+      const ports = await page.locator('.port-selector').evaluate(el => {
+        const outer = el.getBoundingClientRect();
+        const chips = [...el.children].map(chip => {
+          const r = chip.getBoundingClientRect();
+          return { left:r.left, right:r.right, top:r.top, bottom:r.bottom, height:r.height, fits:chip.scrollWidth <= chip.clientWidth };
+        });
+        return { left:outer.left, right:outer.right, top:outer.top, bottom:outer.bottom, overflow:el.scrollWidth > el.clientWidth, chips };
+      });
+      assert.equal(ports.overflow, false, 'Port list needs no horizontal scrolling');
+      assert.equal(ports.chips.length, 8, 'All eight ports are present');
+      assert.equal(new Set(ports.chips.map(chip => chip.top)).size, 2, 'Ports form two rows');
+      for (const chip of ports.chips) assert.ok(chip.left >= ports.left && chip.right <= ports.right + 1 && chip.top >= ports.top && chip.bottom <= ports.bottom && chip.height >= 44 && chip.fits, 'Port buttons and labels fit inside the list');
       await page.locator('#chart-details summary').tap();
       await page.locator('#adventure-checks').scrollIntoViewIfNeeded();
       assert.ok(await page.evaluate(() => scrollY > 0), 'Expanded information remains scrollable');
@@ -73,6 +91,6 @@ const path = require('node:path');
       await context.close();
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: compact mobile harbor/sailing/chart, accessible help/dialog scrolling, horizontal port list, responsive details and protected chart reading.');
+    console.log('PASS: compact mobile harbor/sailing/chart, accessible help/dialog scrolling, all ports visible in two rows, responsive details and protected chart reading.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

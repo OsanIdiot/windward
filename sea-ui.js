@@ -52,7 +52,7 @@
       if(key!==markerKey) {
         markerKey=key;
         $('map-markers').innerHTML=E.PORTS.map(p=>{const known=state.visited.includes(p.id),name=E.portLabel(state,p.id);return `<g class="marker" data-port="${p.id}" transform="translate(${p.x} ${p.y})"><title>${name}</title><g class="marker-pixel"><circle r="17" fill="transparent"/><circle r="6" fill="${known?'#346f60':'#f1e8cc'}" stroke="${known?'#315e4d':'#9c825d'}" stroke-width="1.5"/><text text-anchor="middle" y="3.5" class="port-question">${known?'':'?'}</text><text class="port-caption" text-anchor="middle" y="-15">${name}</text></g></g>`;}).join('');
-        $('port-selector').innerHTML=E.PORTS.map((p,i)=>`<button class="port-chip ${p.id===state.port?'current':''}" data-chart-port="${p.id}" aria-label="${E.portLabel(state,p.id)}${state.visited.includes(p.id)?' 자동항해':' 위치 보기'}">${E.portLabel(state,p.id)}<small>${p.id===state.port?'정박 중':state.visited.includes(p.id)?'자동항해 가능':`해도 표식 ${i+1} · 위치 보기`}</small></button>`).join('');
+        $('port-selector').innerHTML=E.PORTS.map((p,i)=>`<button class="port-chip ${p.id===state.port?'current':''}" data-chart-port="${p.id}" aria-label="${E.portLabel(state,p.id)}${state.visited.includes(p.id)?' 자동항해':' 위치 보기'}">${E.portLabel(state,p.id)}<small>${p.id===state.port?'정박 중':state.visited.includes(p.id)?'자동항해 가능':`표식 ${i+1} 보기`}</small></button>`).join('');
       }
       if(follow && nav?.running && (state.position.x<camera.x+camera.w*.12 || state.position.x>camera.x+camera.w*.88 || state.position.y<camera.y+camera.h*.12 || state.position.y>camera.y+camera.h*.88)) {
         camera.x=state.position.x-camera.w/2; camera.y=state.position.y-camera.h/2; clampCamera();
