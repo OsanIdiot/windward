@@ -55,7 +55,10 @@ const E = require('./engine.js');
       await page.waitForFunction(p => {
         const s = JSON.parse(localStorage.getItem(Windward.KEY));
         return s.navigation?.running && Windward.N.distance(s.position, p) > 4;
-      }, departed.position);
+      }, departed.position).catch(async error => {
+        console.error('Resume diagnostics', { mobile, departed, current: await page.evaluate(() => JSON.parse(localStorage.getItem(Windward.KEY))) });
+        throw error;
+      });
       await click('#voyage-pause');
       await click('#open-chart-button'); await click('[data-chart-port="cedar"]');
       await page.waitForFunction(() => {

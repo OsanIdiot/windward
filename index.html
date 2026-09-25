@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=23">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=22" defer></script>
@@ -14,7 +14,7 @@
   <script src="voyage-ui.js?v=16" defer></script>
   <script src="audio-config.js?v=21" defer></script>
   <script src="audio.js?v=21" defer></script>
-  <script src="app.js?v=18" defer></script>
+  <script src="app.js?v=23" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -90,12 +90,14 @@
         </div>
         <div class="arrival-panel" id="arrival-panel" aria-live="polite"></div>
         <div class="navigation-toolbar"><div class="segmented" aria-label="항해 방식"><button id="mode-manual" class="active" aria-pressed="true">수동항해</button><button id="mode-auto" aria-pressed="false">자동항해</button></div><span id="navigation-status" role="status">바다를 클릭해 출항하세요</span><button id="pause-sailing" class="secondary" disabled>정지</button></div>
+        <div class="port-selector" id="port-selector" aria-label="목적지 선택"></div>
+        <details class="chart-details" id="chart-details" open><summary>항로 정보 · 항해 목표 · 조작 안내</summary>
         <p class="chart-instructions">바다 클릭·터치: 이동 · 육지 통과 불가 · 드래그: 지도 이동 · 방문한 항구 클릭: 자동항해</p>
         <p class="chart-instructions">1550년경의 실제 항구 · 현대 해안선을 간략화한 지도 · 항구 표시는 입항용 해상 정박점입니다.</p>
-        <div class="port-selector" id="port-selector" aria-label="목적지 선택"></div>
         <div class="route-panel" id="route-panel"></div>
         <aside class="objective"><div class="objective-icon"><svg class="icon"><use href="#i-compass"/></svg></div><div><p class="eyebrow">YOUR FIRST CHAPTER</p><h3>작은 배, 커다란 꿈</h3><p>8곳의 항구를 직접 발견하고, 배를 업그레이드하고, 5,000 G를 모으세요.</p><div class="quest-checks" id="quest-checks"></div></div></aside>
         <aside class="adventure-goal"><div><p class="eyebrow">STORIES BEYOND THE HORIZON</p><h3>돈보다 오래 남는 보물</h3><p>다섯 발견을 기록하고 의뢰 3건을 완수해, 항구들의 이야기를 연결하세요.</p><div class="quest-checks" id="adventure-checks"></div></div><span class="hint">입항 후 탐험 메뉴에서</span></aside>
+        </details>
       </section>
       <section class="dock" id="dock" aria-label="항구 화면">
         <div class="harbor-town">
