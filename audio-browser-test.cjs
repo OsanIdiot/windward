@@ -65,7 +65,7 @@ async function instrument(context) {
     await page.locator('#voyage-screen').waitFor({ state: 'visible' });
     await page.waitForFunction(() => audioProbe.rms?.() > .0002);
     await page.locator('#voyage-canvas').focus(); await page.keyboard.press('ArrowLeft');
-    await page.waitForFunction(() => audioProbe.gains[1].gain.value > .85);
+    await page.waitForFunction(() => audioProbe.gains[1].gain.value > WindwardAudio.sfx.sounds.water.gain * .85);
     await page.waitForFunction(() => audioProbe.gains[4].gain.value > .25);
     assert.equal(await page.evaluate(() => audioProbe.oscillators), 0, 'Runtime only plays files, with no synthesis oscillators');
     assert.ok(await page.evaluate(() => audioProbe.rms() < .15), 'Ambient output stays restrained');
