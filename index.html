@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#f3eee3">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=25">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
   <script src="engine.js?v=22" defer></script>
-  <script src="sea-ui.js?v=24" defer></script>
+  <script src="sea-ui.js?v=25" defer></script>
   <script src="voyage-ui.js?v=16" defer></script>
   <script src="audio-config.js?v=21" defer></script>
   <script src="audio.js?v=21" defer></script>
-  <script src="app.js?v=23" defer></script>
+  <script src="app.js?v=25" defer></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -89,14 +89,12 @@
           <div class="map-bottom"><span><i class="map-dot"></i> <span id="current-label">리스본 정박 중</span></span><span id="coordinates">38° N · 9° W</span></div>
         </div>
         <div class="arrival-panel" id="arrival-panel" aria-live="polite"></div>
-        <div class="navigation-toolbar"><div class="segmented" aria-label="항해 방식"><button id="mode-manual" class="active" aria-pressed="true">수동항해</button><button id="mode-auto" aria-pressed="false">자동항해</button></div><span id="navigation-status" role="status">바다를 클릭해 출항하세요</span><button id="pause-sailing" class="secondary" disabled>정지</button></div>
+        <div class="navigation-toolbar"><button id="goals-button" class="secondary" aria-haspopup="dialog" aria-controls="goals-dialog">항해 목표</button><span id="navigation-status" role="status">바다를 클릭해 출항하세요</span><button id="pause-sailing" class="secondary" disabled>정지</button></div>
         <div class="port-selector" id="port-selector" aria-label="목적지 선택"></div>
-        <details class="chart-details" id="chart-details" open><summary>항로 정보 · 항해 목표 · 조작 안내</summary>
+        <details class="chart-details" id="chart-details" open><summary>항로 정보 · 조작 안내</summary>
         <p class="chart-instructions">바다 클릭·터치: 이동 · 육지 통과 불가 · 드래그: 지도 이동 · 방문한 항구 클릭: 자동항해</p>
         <p class="chart-instructions">1550년경의 실제 항구 · 현대 해안선을 간략화한 지도 · 항구 표시는 입항용 해상 정박점입니다.</p>
         <div class="route-panel" id="route-panel"></div>
-        <aside class="objective"><div class="objective-icon"><svg class="icon"><use href="#i-compass"/></svg></div><div><p class="eyebrow">YOUR FIRST CHAPTER</p><h3>작은 배, 커다란 꿈</h3><p>8곳의 항구를 직접 발견하고, 배를 업그레이드하고, 5,000 G를 모으세요.</p><div class="quest-checks" id="quest-checks"></div></div></aside>
-        <aside class="adventure-goal"><div><p class="eyebrow">STORIES BEYOND THE HORIZON</p><h3>돈보다 오래 남는 보물</h3><p>다섯 발견을 기록하고 의뢰 3건을 완수해, 항구들의 이야기를 연결하세요.</p><div class="quest-checks" id="adventure-checks"></div></div><span class="hint">입항 후 탐험 메뉴에서</span></aside>
         </details>
       </section>
       <section class="dock" id="dock" aria-label="항구 화면">
@@ -125,6 +123,13 @@
   </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="goals-dialog" class="goals-dialog" aria-labelledby="goals-title">
+    <div class="goals-header"><h2 id="goals-title" tabindex="-1">항해 목표</h2><button class="secondary" data-close="goals-dialog" aria-label="항해 목표 닫기">닫기 <span aria-hidden="true">×</span></button></div>
+    <div class="goals-content">
+      <section class="objective"><div class="objective-icon"><svg class="icon" aria-hidden="true"><use href="#i-compass"/></svg></div><div><p class="eyebrow">YOUR FIRST CHAPTER</p><h3>작은 배, 커다란 꿈</h3><p>8곳의 항구를 직접 발견하고, 배를 업그레이드하고, 5,000 G를 모으세요.</p><div class="quest-checks" id="quest-checks"></div></div></section>
+      <section class="adventure-goal"><div><p class="eyebrow">STORIES BEYOND THE HORIZON</p><h3>돈보다 오래 남는 보물</h3><p>다섯 발견을 기록하고 의뢰 3건을 완수해, 항구들의 이야기를 연결하세요.</p><div class="quest-checks" id="adventure-checks"></div></div><span class="hint">입항 후 탐험 메뉴에서</span></section>
+    </div>
+  </dialog>
   <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="안내 닫기">×</button><p class="eyebrow">THE MEDITERRANEAN, c.1550</p><h2>이름 없는 항구를 찾아서.</h2><p>리스본 항구 화면에서 시작합니다. 항구 버튼으로 바다에 나가세요. 다른 항구는 입항 버튼을 누르기 전까지 '미확인 항구'로 표시됩니다.</p><ol><li><strong>배 주변의 바다를 눌러 조타하세요.</strong><br>누른 방향으로 계속 항해합니다. 다시 누르면 방향을 바꾸고, 해안·해역 경계·예산 한계 앞에서는 정지합니다. '정지'와 '계속'으로 항해를 조절하세요.</li><li><strong>길을 살필 때는 해도를 펼치세요.</strong><br>해도에서 항로를 정하거나 '계속'을 누르면 항해 화면으로 전환합니다. 이동 중 '해도 열기'나 작은 지도를 누르면 약 3초간 해도를 확인하고 자동으로 돌아갑니다. 드래그·확대 조작을 마치면 3초를 다시 셉니다. 정지 중에는 시간제한이 없습니다. 해도의 수동항해는 누른 바다 지점까지만 이동하며, 육지는 중간 지점을 정해 우회하세요.</li><li><strong>미확인 항구에 접근해 입항하세요.</strong><br>가까운 항구가 항해 화면에 표시됩니다. 접근한 뒤 정지 상태에서 '입항'을 누르면 이름이 공개되고 항구 화면이 열립니다. 방문한 항구는 클릭 한 번으로 해안을 우회해 자동항해합니다.</li><li><strong>항구에서 다음 항해를 준비하세요.</strong><br>교역소·탐험·의뢰·선박을 이용하고 항구 버튼을 눌러 바다로 돌아갑니다. 화면 전환은 무료이며 실제 항해 거리에 따라 날짜와 경비가 진행됩니다. 해류 지도는 경비를 줄여줍니다.</li></ol><p class="hint">항해 화면에 초점을 두면 방향키로 조타, 스페이스로 정지·계속할 수 있습니다. 해도는 드래그로 이동하고 +/− 또는 두 손가락으로 확대합니다.<br>새로고침하거나 화면을 벗어나면 항해가 정지된 상태로 저장됩니다. '계속'을 눌러 재개하세요.<br>항구는 1550년경의 실제 도시, 해안선은 현대 지형을 단순화했습니다. 의뢰·모험·시세는 게임용 창작입니다.</p><button class="primary" data-close="help-dialog">나의 첫 항로 그리기</button></dialog>
   <dialog id="discovery-dialog" aria-labelledby="discovery-title"><button class="dialog-close" data-close="discovery-dialog" aria-label="발견 기록 닫기">×</button><p class="eyebrow">A NEW PAGE IN YOUR ATLAS</p><div id="discovery-art"></div><h2 id="discovery-title"></h2><p id="discovery-story"></p><p id="discovery-benefit" class="market-tip"></p><p id="discovery-reward" class="hint"></p><button class="primary" data-close="discovery-dialog">발견 도감에 기록했습니다</button></dialog>
   <dialog id="reset-dialog"><p class="eyebrow">A NEW BEGINNING</p><h2>새 항해를 시작할까요?</h2><p>이 브라우저에 저장된 현재 항해 기록이 삭제됩니다.</p><div class="dialog-actions"><button class="secondary" data-close="reset-dialog">계속 항해하기</button><button class="primary" id="confirm-reset">처음부터 시작</button></div></dialog>

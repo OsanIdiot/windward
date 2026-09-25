@@ -3,7 +3,7 @@
   root.createSeaUI = function ({ read, navigate, toggle, notify }) {
     const E = root.Windward, N = E.N, G = N.G;
     const $ = id => document.getElementById(id), svg = $('sea-map');
-    let mode = 'manual', follow = true, camera = { x: 45, y: 220, w: 430, h: 270 }, markerKey = '';
+    let follow = true, camera = { x: 45, y: 220, w: 430, h: 270 }, markerKey = '';
     let pointers = new Map(), gesture = null;
     const coords = p => { const c = N.unproject(p); return `${Math.abs(c.lat).toFixed(2)}° ${c.lat >= 0 ? 'N' : 'S'} · ${Math.abs(c.lon).toFixed(2)}° ${c.lon >= 0 ? 'E' : 'W'}`; };
     $('real-land').innerHTML = `<path d="${G.rings.map(r => 'M' + r.map(p => p.join(',')).join('L') + 'Z').join('')}" fill="#e5dec3" stroke="#91a68c" stroke-width=".7" vector-effect="non-scaling-stroke" fill-rule="evenodd"/>`;
@@ -13,10 +13,6 @@
       camera.x = Math.max(0, Math.min(G.width - camera.w, camera.x));
       camera.y = Math.max(0, Math.min(G.height - camera.h, camera.y));
       svg.setAttribute('viewBox', `${camera.x} ${camera.y} ${camera.w} ${camera.h}`);
-    }
-    function setMode(value) {
-      mode = value;
-      for (const m of ['manual','auto']) { $(`mode-${m}`).classList.toggle('active',m===mode); $(`mode-${m}`).setAttribute('aria-pressed',String(m===mode)); }
     }
     function center(p = read().position) { follow = p === read().position; camera.x=p.x-camera.w/2; camera.y=p.y-camera.h/2; clampCamera(); render(); }
     function zoom(factor, point) {
@@ -34,9 +30,8 @@
     function portClick(id, fromList = false) {
       const state=read(), port=E.portOf(id);
       if (state.port===id || (E.nearbyPort(state)?.id===id && !state.navigation?.running)) { center(port); notify('항구 근처입니다. 입항 버튼으로 항구 화면에 들어갈 수 있습니다.'); return; }
-      if (state.visited.includes(id)) { if(navigate({mode:'auto',destination:id})) { setMode('auto'); follow=true; } }
+      if (state.visited.includes(id)) { if(navigate({mode:'auto',destination:id})) follow=true; }
       else if(fromList) { follow=false; center(port); notify('미확인 항구입니다. 바다를 따라 직접 접근해 입항하세요.'); }
-      else if(mode==='auto') notify('미확인 항구에는 자동항해할 수 없습니다. 수동항해로 먼저 방문하세요.',true);
       else if(navigate({mode:'manual',point:{x:port.x,y:port.y}})) follow=true;
       render();
     }
@@ -71,7 +66,7 @@
       if(nav) {
         const q=E.passage(state,points);
         $('route-panel').innerHTML=`<div><h3>${nav.mode==='auto'?E.portLabel(state,nav.targetPort)+' 자동항해':'나의 수동항로'}</h3><p>남은 항로 약 ${Math.ceil(q.distance)} 해도 단위 · 추가 ${q.days}일 / ${q.cost} G<br>${state.discoveries.includes('tide')?'해류 지도 적용 · ':''}새 바다 지점을 누르면 현재 위치에서 방향을 바꿉니다.</p></div>`;
-      } else $('route-panel').innerHTML=`<div><h3>${here?here.name+'에서 새로운 바다로':'지정한 바다에 도착했습니다'}</h3><p>${mode==='manual'?'수동항해: 바다를 클릭하면 그 지점으로 이동합니다. 육지를 만나면 해안을 따라 우회하세요.':'자동항해: 한 번 방문한 항구를 눌러 주세요. 미확인 항구는 먼저 직접 찾아가야 합니다.'}</p></div>`;
+      } else $('route-panel').innerHTML=`<div><h3>${here?here.name+'에서 새로운 바다로':'지정한 바다에 도착했습니다'}</h3><p>바다를 누르면 그 지점으로 수동항해하고, 방문한 항구를 누르면 자동항해합니다. 미확인 항구는 직접 접근해 입항하세요.</p></div>`;
     }
     svg.addEventListener('pointerdown',event=>{
       if(event.button!==0) return;
@@ -95,7 +90,6 @@
       if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);
       if(tap) {
         if(port)portClick(port);
-        else if(mode==='auto')notify('자동항해할 방문 항구를 선택하거나 수동항해로 전환하세요.');
         else { const p=worldPoint(event);if(p&&navigate({mode:'manual',point:p}))follow=true; }
       }
       if(!pointers.size)gesture=null;
@@ -107,11 +101,9 @@
     $('zoom-in').addEventListener('click',()=>zoom(1/1.3));$('zoom-out').addEventListener('click',()=>zoom(1.3));
     $('chart-home').addEventListener('click',()=>{follow=true;center();});
     $('chart-world').addEventListener('click',()=>{follow=false;camera={x:0,y:0,w:G.width,h:G.height};clampCamera();render();});
-    $('mode-manual').addEventListener('click',()=>{setMode('manual');render();});
-    $('mode-auto').addEventListener('click',()=>{setMode('auto');render();});
     $('pause-sailing').addEventListener('click',()=>toggle(read().navigation?.running?'pause':'resume'));
     window.addEventListener('resize',render);
     clampCamera(); center();
-    return { render, reset:()=>{setMode('manual');follow=true;center();} };
+    return { render, reset:()=>{follow=true;center();} };
   };
 })(window);

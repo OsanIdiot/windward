@@ -93,7 +93,6 @@ const path = require('node:path');
   await closeService(page);await page.locator('#harbor-button').click();await openChart(page);
   await page.locator('#chart-world').click();
   await page.screenshot({path:path.join(__dirname,'chart-screen-desktop.png'),fullPage:true});
-  await page.locator('#mode-manual').click();
   await clickPoint(await page.evaluate(()=>Windward.N.project(-3.7,40.4)));
   assert.match(await page.locator('#toast').innerText(),/육지가 아닌/);
   assert.equal((await saved()).port,'cedar');

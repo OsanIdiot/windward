@@ -59,7 +59,7 @@ const path = require('node:path');
       assert.equal(new Set(ports.chips.map(chip => chip.top)).size, 2, 'Ports form two rows');
       for (const chip of ports.chips) assert.ok(chip.left >= ports.left && chip.right <= ports.right + 1 && chip.top >= ports.top && chip.bottom <= ports.bottom && chip.height >= 44 && chip.fits, 'Port buttons and labels fit inside the list');
       await page.locator('#chart-details summary').tap();
-      await page.locator('#adventure-checks').scrollIntoViewIfNeeded();
+      await page.locator('#route-panel').scrollIntoViewIfNeeded();
       assert.ok(await page.evaluate(() => scrollY > 0), 'Expanded information remains scrollable');
       await page.locator('#chart-details summary').tap();
       await page.evaluate(() => scrollTo(0, 0));
