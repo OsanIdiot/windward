@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
   const errors = [], url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=30';
   try {
     const context = await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    await context.addInitScript(() => localStorage.setItem('windward-camera', 'north'));
     const page = async (address=url) => { const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(address);return p; };
     const start = async p => { await p.locator('#start-button').tap();await p.locator('#game-screen').waitFor({state:'visible'}); };
     const saved = p => p.evaluate(()=>JSON.parse(localStorage.getItem(Windward.KEY)));

@@ -7,6 +7,7 @@ const { openChart } = require('./browser-helpers.cjs');
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try {
     const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'no-preference'});
+    await context.addInitScript(()=>localStorage.setItem('windward-camera','north'));
     const page=await context.newPage(),errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('response',r=>{if(r.status()>=400&&!r.url().endsWith('favicon.ico'))errors.push(r.status()+' '+r.url());});
@@ -72,6 +73,7 @@ const { openChart } = require('./browser-helpers.cjs');
     assert.equal((await saved()).navigation.running,false);
     for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Fits ${width}`);}
     const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    await mobile.addInitScript(()=>localStorage.setItem('windward-camera','north'));
     const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(e.message));
     await phone.goto(url);await phone.locator('#start-button').tap();await phone.locator('#harbor-button').tap();
     await phone.screenshot({path:path.join(__dirname,'voyage-mobile.png'),fullPage:true});

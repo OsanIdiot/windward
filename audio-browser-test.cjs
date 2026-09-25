@@ -4,6 +4,7 @@ const path = require('node:path');
 
 async function instrument(context) {
   await context.addInitScript(() => {
+    localStorage.setItem('windward-camera', 'north');
     const Native = window.AudioContext || window.webkitAudioContext;
     window.audioProbe = { contexts: [], oscillators: 0, sources: 0, gains: [], tones: [], buffers: [], decoded: 0 };
     window.AudioContext = class extends Native {

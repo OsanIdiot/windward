@@ -35,7 +35,7 @@ const E = require('./engine.js');
         const s = JSON.parse(localStorage.getItem(Windward.KEY)), p = Windward.nearbyPort(s);
         for (let heading = 0; heading < 360; heading += 15) {
           const point = Windward.N.headingTarget(s.position, heading, 40);
-          if (Windward.N.distance(s.position, point) > 30 && Windward.N.distance(point, p) > 30) return heading;
+          if (Windward.N.distance(s.position, point) > 30 && Windward.N.distance(point, p) > 30) return (heading - s.motion.heading + 360) % 360;
         }
         throw Error('No test departure heading');
       });

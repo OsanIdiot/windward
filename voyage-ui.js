@@ -1,13 +1,17 @@
 (function (root) {
   'use strict';
   root.createVoyageUI = function ({ read, steer, navigate, toggle, notify }) {
-    const E = root.Windward, N = E.N, $ = id => document.getElementById(id);
+    const E = root.Windward, N = E.N, C = root.VoyageCamera, $ = id => document.getElementById(id);
     const canvas = $('voyage-canvas'), ctx = canvas.getContext('2d');
     const mini = $('voyage-minimap'), mc = mini.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const land = new Path2D(N.G.rings.map(r => 'M' + r.map(p => p.join(',')).join('L') + 'Z').join(''));
     let width = 0, height = 0, scale = 1, cx = 0, cy = 0, heading = 225, lastStamp = 0, portKey = '';
     let trail = [], previous = null, press = null, lastHUD = 0;
+    let headingUp = true;
+    try { headingUp = localStorage.getItem('windward-camera') !== 'north'; } catch (_) {}
+    const cameraBearing = () => headingUp ? heading : 0;
+    const cameraView = () => ({ x: cx, y: cy, zoom: scale, bearing: cameraBearing() });
     const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
     function resize() {
       const rect = canvas.getBoundingClientRect(), ratio = Math.min(2, devicePixelRatio || 1);
@@ -20,11 +24,11 @@
       scale = Math.min(width, height) / 145;
       cx = width * .5; cy = height * .58;
     }
-    function worldTransform(context, position, x = cx, y = cy, zoom = scale) {
-      context.translate(x - position.x * zoom, y - position.y * zoom); context.scale(zoom, zoom);
+    function worldTransform(context, position, x = cx, y = cy, zoom = scale, bearing = cameraBearing()) {
+      C.transform(context, position, { x, y, zoom, bearing });
     }
     function ship(time, moving, tier, speed) {
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(heading * Math.PI / 180);
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate((heading - cameraBearing()) * Math.PI / 180);
       const size = (width < 500 ? .8 : 1) * (1 + tier * .035); ctx.scale(size, size);
       ctx.fillStyle = '#164e4c33'; ctx.beginPath(); ctx.ellipse(5, 6, 28, 54, 0, 0, Math.PI * 2); ctx.fill();
       if (moving) {
@@ -50,7 +54,7 @@
     }
     function renderMini(state) {
       mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);
-      mc.save();worldTransform(mc,state.position,75,55,.5);mc.fillStyle='#e2dcc0';mc.fill(land,'evenodd');mc.restore();
+      mc.save();worldTransform(mc,state.position,75,55,.5,0);mc.fillStyle='#e2dcc0';mc.fill(land,'evenodd');mc.restore();
       for(const p of E.PORTS){const x=75+(p.x-state.position.x)*.5,y=55+(p.y-state.position.y)*.5;
         if(x<4||x>146||y<4||y>106)continue;
         mc.fillStyle=state.visited.includes(p.id)?'#386957':'#a68453';mc.beginPath();mc.arc(x,y,2,0,Math.PI*2);mc.fill();}
@@ -58,7 +62,8 @@
       mc.fillStyle='#385d51';mc.font='10px Georgia';mc.fillText('N',7,13);
     }
     function renderPorts(state) {
-      const visible=E.PORTS.filter(p=>N.distance(state.position,p)<85).map(p=>({p,x:cx+(p.x-state.position.x)*scale,y:cy+(p.y-state.position.y)*scale})).filter(v=>v.x>50&&v.x<width-50&&v.y>115&&v.y<height-110);
+      const visible=E.PORTS.map(p=>({p,...C.project(p,state.position,cameraView())})).filter(v=>v.x>50&&v.x<width-50&&v.y>115&&v.y<height-110)
+        .filter(v=>!(v.x>width-135&&v.y<205));
       const key=visible.map(v=>v.p.id+state.visited.includes(v.p.id)).join(',');
       if(key!==portKey){
         portKey=key;
@@ -72,7 +77,6 @@
       const degree=(Math.round(heading)%360+360)%360;
       const directions=['북','북동','동','남동','남','남서','서','북서'];
       text('voyage-bearing',`${directions[Math.round(degree/45)%8]} · ${degree}°`);
-      $('voyage-needle').style.transform=`rotate(${degree}deg)`;
       text('voyage-position',`${Math.abs(coordinate.lat).toFixed(2)}° N · ${Math.abs(coordinate.lon).toFixed(2)}° ${coordinate.lon>=0?'E':'W'}`);
       text('voyage-motion',nav?.stopping?'돛을 내리고 감속 중':nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
       const speed = nav?.running ? state.motion?.speed ?? 1 : 0;
@@ -91,6 +95,10 @@
       const target=state.navigation?.points[0];
       if(state.motion) heading=state.motion.heading;
       else if(target){const wanted=(Math.atan2(target.x-state.position.x,state.position.y-target.y)*180/Math.PI+360)%360;const difference=(wanted-heading+540)%360-180;heading=(heading+difference*Math.min(1,dt*8)+360)%360;}
+      // The compass points to world north, not the ship's bow. No CSS interpolation across 0/360.
+      $('voyage-needle').style.transform=`rotate(${-cameraBearing()}deg)`;
+      $('voyage-north').style.transform=`translate(-50%,-50%) rotate(${-cameraBearing()}deg) translateY(var(--north-offset)) rotate(${cameraBearing()}deg)`;
+      $('voyage-stage').dataset.camera = headingUp ? 'heading' : 'north';
       if(previous&&N.distance(previous,state.position)>35)trail=[];
       if(moving&&(!previous||N.distance(previous,state.position)>.6)){trail.push({...state.position,at:stamp});previous={...state.position};}
       trail=trail.filter(p=>stamp-p.at<7000).slice(-220);
@@ -98,12 +106,12 @@
       const gradient=ctx.createLinearGradient(0,0,width,height);gradient.addColorStop(0,'#a5c9c0');gradient.addColorStop(.55,'#75aaa5');gradient.addColorStop(1,'#528c88');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
       ctx.save();worldTransform(ctx,state.position);
       ctx.lineWidth=.45;ctx.strokeStyle='#eef5d83b';
-      const left=state.position.x-cx/scale,top=state.position.y-cy/scale;
-      for(let y=Math.floor(top/9)*9;y<top+height/scale+10;y+=9)for(let x=Math.floor(left/18)*18;x<left+width/scale+18;x+=18){const drift=Math.sin(y*.2)*5+Math.sin(time*.6+y)*1.5;ctx.beginPath();ctx.moveTo(x+drift,y);ctx.quadraticCurveTo(x+4+drift,y-1.3,x+8+drift,y);ctx.stroke();}
+      const {left,top,right,bottom}=C.bounds(state.position,cameraView(),width,height);
+      for(let y=Math.floor(top/9)*9;y<bottom+10;y+=9)for(let x=Math.floor(left/18)*18;x<right+18;x+=18){const drift=Math.sin(y*.2)*5+Math.sin(time*.6+y)*1.5;ctx.beginPath();ctx.moveTo(x+drift,y);ctx.quadraticCurveTo(x+4+drift,y-1.3,x+8+drift,y);ctx.stroke();}
       ctx.lineJoin='round';ctx.strokeStyle='#dfead39c';ctx.lineWidth=3.5;ctx.stroke(land);ctx.fillStyle='#dcd8b8';ctx.fill(land,'evenodd');ctx.strokeStyle='#8aab8a';ctx.lineWidth=.7;ctx.stroke(land);
       // Decorative groves stay fixed to the world and are clipped to actual land.
       ctx.save();ctx.clip(land,'evenodd');
-      for(let y=Math.floor(top/27)*27;y<top+height/scale+27;y+=27)for(let x=Math.floor(left/34)*34;x<left+width/scale+34;x+=34){
+      for(let y=Math.floor(top/27)*27;y<bottom+27;y+=27)for(let x=Math.floor(left/34)*34;x<right+34;x+=34){
         const offset=Math.sin(x*13+y*7)*8;
         ctx.fillStyle='#9ba87b24';ctx.beginPath();ctx.ellipse(x+offset,y,13,7,.25,0,Math.PI*2);ctx.fill();
         ctx.strokeStyle='#81936a45';ctx.lineWidth=.45;
@@ -124,14 +132,25 @@
       const moved=Math.hypot(event.clientX-press.x,event.clientY-press.y);press=null;if(moved>15)return;
       const rect=canvas.getBoundingClientRect(),dx=event.clientX-rect.left-cx,dy=event.clientY-rect.top-cy;
       if(Math.hypot(dx,dy)<18){notify('배에서 조금 떨어진 바다를 눌러 방향을 정해 주세요.');return;}
-      steer((Math.atan2(dx,-dy)*180/Math.PI+360)%360);
+      steer(C.worldHeading(Math.atan2(dx,-dy)*180/Math.PI,cameraBearing()));
     });
     canvas.addEventListener('keydown',event=>{
       const angles={ArrowUp:0,ArrowRight:90,ArrowDown:180,ArrowLeft:270};
-      if(event.key in angles){event.preventDefault();if(!event.repeat)steer(angles[event.key]);}
+      if(event.key in angles){event.preventDefault();if(!event.repeat)steer(C.worldHeading(angles[event.key],cameraBearing()));}
       if(event.code==='Space'){event.preventDefault();if(!event.repeat&&read().navigation)toggle(read().navigation.running&&!read().navigation.stopping?'pause':'resume');}
     });
     $('voyage-pause').addEventListener('click',()=>toggle(read().navigation?.running&&!read().navigation.stopping?'pause':'resume'));
+    function updateCameraControl() {
+      text('voyage-camera-toggle',headingUp?'시점: 선수 고정':'시점: 북쪽 고정');
+      $('voyage-camera-toggle').setAttribute('aria-pressed',String(headingUp));
+      $('voyage-canvas').setAttribute('aria-label','바다 조타. 배 주변 클릭·터치와 방향키는 화면 기준 방향, 스페이스는 정지 또는 계속입니다. '+(headingUp?'배의 뱃머리가 위를 향하고 지도가 회전합니다.':'북쪽이 화면 위입니다.'));
+    }
+    $('voyage-camera-toggle').addEventListener('click',()=>{
+      headingUp=!headingUp; press=null;
+      try { localStorage.setItem('windward-camera',headingUp?'heading':'north'); } catch (_) {}
+      updateCameraControl(); lastHUD=0; render();
+    });
+    updateCameraControl();
     $('voyage-ports').addEventListener('click',event=>{
       const button=event.target.closest('[data-voyage-port]');if(!button)return;
       const state=read(),id=button.dataset.voyagePort,p=E.portOf(id);

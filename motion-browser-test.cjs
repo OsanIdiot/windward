@@ -13,6 +13,7 @@ const E = require('./engine.js');
         if (!sessionStorage.getItem('motion-fixture')) {
           localStorage.setItem('windward-v1', JSON.stringify(state));
           localStorage.setItem('windward-audio-enabled', 'off');
+          localStorage.setItem('windward-camera', 'north');
           sessionStorage.setItem('motion-fixture', '1');
         }
       }, state);
@@ -24,6 +25,7 @@ const E = require('./engine.js');
     const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=16';
     const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem(Windward.KEY)));
     await page.goto(url); await page.locator('#start-button').click();
+    await page.waitForFunction(() => !document.getElementById('start-button').disabled && !document.getElementById('voyage-screen').hidden);
     await page.locator('#voyage-canvas').focus(); await page.keyboard.press('ArrowDown');
     assert.equal((await saved()).motion.speed, 0);
     await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem(Windward.KEY)); return s.motion.speed > 0 && s.motion.speed < .6; });

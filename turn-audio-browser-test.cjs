@@ -11,6 +11,7 @@ const E = require('./engine.js');
     await context.addInitScript(state => {
       localStorage.setItem('windward-v1', JSON.stringify(state));
       localStorage.setItem('windward-audio-enabled', 'on');
+      localStorage.setItem('windward-camera', 'north');
       const Native = window.AudioContext;
       window.turnProbe = { contexts: [], creaks: [] };
       window.AudioContext = class extends Native {
