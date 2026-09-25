@@ -2,9 +2,10 @@
   'use strict';
   root.createSeaAudio = function ({ changed = () => {}, notify = () => {} } = {}) {
     const key = 'windward-audio-enabled', config = root.WindwardAudio;
+    const effects = config?.sfx?.sounds;
     const AudioContext = root.AudioContext || root.webkitAudioContext;
     const loops = new Map(), buffers = new Map(), pending = new Map(), voices = new Set();
-    let enabled = true, context, master, failed = !AudioContext || !config, resuming = false, resumeAttempt = 0;
+    let enabled = true, context, master, failed = !AudioContext || !effects, resuming = false, resumeAttempt = 0;
     let scene = { active: false, sea: false, moving: false }, signature = '';
     let nextGullAt = 0, nextCreakAt = 0, bellRequest = 0, loadWarning = false;
     try { enabled = localStorage.getItem(key) !== 'off'; } catch (_) {}
@@ -21,7 +22,7 @@
       const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 12000);
       const promise = (async () => {
         try {
-          const url = new URL(config.sounds[name].file, document.baseURI);
+          const url = new URL(effects[name].file, document.baseURI);
           url.searchParams.set('v', config.version);
           const response = await fetch(url, { signal: controller.signal });
           if (!response.ok) throw Error(`Audio HTTP ${response.status}`);
@@ -42,7 +43,7 @@
       try {
         context = new AudioContext();
         master = context.createGain(); master.gain.value = 0; master.connect(context.destination);
-        for (const [name, sound] of Object.entries(config.sounds)) {
+        for (const [name, sound] of Object.entries(effects)) {
           if (sound.loop) {
             const gain = context.createGain(); gain.gain.value = 0; gain.connect(master);
             loops.set(name, { gain, source: null });
@@ -52,7 +53,7 @@
           if (context.state === 'running' && (!enabled || !scene.active)) sync();
           else report();
         };
-        for (const name of Object.keys(config.sounds)) load(name);
+        for (const name of Object.keys(effects)) load(name);
       } catch (_) {
         failed = true;
         context?.close().catch(() => {}); context = null;
@@ -77,7 +78,7 @@
       const source = context.createBufferSource(), gain = context.createGain();
       const pan = context.createStereoPanner ? context.createStereoPanner() : null;
       source.buffer = buffers.get(name); source.playbackRate.value = rate;
-      gain.gain.value = config.sounds[name].gain * volume;
+      gain.gain.value = config.sfx.gain * effects[name].gain * volume;
       source.connect(gain);
       if (pan) { pan.pan.value = panValue; gain.connect(pan); pan.connect(master); }
       else gain.connect(master);
@@ -102,7 +103,7 @@
           loop.source = context.createBufferSource(); loop.source.buffer = buffers.get(name);
           loop.source.loop = true; loop.source.connect(loop.gain); loop.source.start();
         }
-        fade(loop.gain.gain, scene.sea ? (levels[name] ?? speed) * config.sounds[name].gain : 0, name === 'wind' ? 1.5 : .9);
+        fade(loop.gain.gain, scene.sea ? config.sfx.gain * (levels[name] ?? speed) * effects[name].gain : 0, name === 'wind' ? 1.5 : .9);
       }
       if (!scene.sea) { stop('gull'); nextGullAt = 0; }
       else stop('bell');

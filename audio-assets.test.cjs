@@ -7,8 +7,8 @@ const { createSounds, rate } = require('./build-audio.cjs');
 const generated = createSounds();
 
 test('every configured sound ships in the replaceable audio directory', () => {
-  assert.equal(Object.keys(config.sounds).length, 9);
-  for (const sound of Object.values(config.sounds)) {
+  assert.equal(Object.keys(config.sfx.sounds).length, 9);
+  for (const sound of Object.values(config.sfx.sounds)) {
     assert.match(sound.file, /^assets\/audio\/[\w-]+\.(wav|mp3|ogg|m4a)$/);
     assert.ok(sound.gain >= 0 && sound.gain <= 1);
     const bytes = fs.readFileSync(path.join(__dirname, sound.file));
@@ -23,7 +23,7 @@ test('offline placeholders are non-silent, unclipped and have quiet loop seams',
   for (const [name, data] of Object.entries(generated)) {
     const peak = data.reduce((p, x) => Math.max(p, Math.abs(x)), 0);
     assert.ok(peak > .01 && peak < .99, name);
-    if (config.sounds[name].loop) assert.ok(Math.abs(data[0] - data.at(-1)) < .02, 'Quiet loop seam: ' + name);
+    if (config.sfx.sounds[name].loop) assert.ok(Math.abs(data[0] - data.at(-1)) < .02, 'Quiet loop seam: ' + name);
   }
 });
 test('offline bell placeholder contains three tight attacks and only a final long ring', () => {
@@ -46,7 +46,7 @@ test('browser playback code contains no oscillator or PCM synthesis', () => {
 
 test('edited recorded creaks are mono PCM with headroom, fades and a quiet hull loop seam', () => {
   for (const [key, seconds] of [['hull', 18], ['turn1', 2.9], ['turn2', 2.8], ['turn3', 2.3]]) {
-    const data = fs.readFileSync(path.join(__dirname, config.sounds[key].file));
+    const data = fs.readFileSync(path.join(__dirname, config.sfx.sounds[key].file));
     assert.equal(data.readUInt16LE(20), 1);
     assert.equal(data.readUInt16LE(22), 1);
     assert.equal(data.readUInt32LE(24), 32000);
@@ -63,4 +63,12 @@ test('edited recorded creaks are mono PCM with headroom, fades and a quiet hull 
     const rms = Math.sqrt(sum / n);
     assert.ok(rms > .005 && rms <= (key === 'hull' ? .026 : .081), key + ': level');
   }
+});
+
+test('all current sounds are effects and music is a separate empty bank', () => {
+  assert.deepEqual(Object.keys(config.sfx.sounds).sort(), ['bell', 'gull', 'hull', 'sails', 'turn1', 'turn2', 'turn3', 'water', 'wind']);
+  assert.deepEqual(config.music.tracks, {});
+  assert.equal(config.sfx.gain, 1);
+  assert.equal(config.music.gain, 1);
+  assert.equal(config.master, .45);
 });

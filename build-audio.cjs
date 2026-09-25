@@ -105,7 +105,7 @@ function writeWav(name, data) {
   wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28);
   wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(data.length * 2, 40);
   data.forEach((value, i) => wav.writeInt16LE(Math.round(value * 32767), 44 + i * 2));
-  const output = path.resolve(__dirname, config.sounds[name].file);
+  const output = path.resolve(__dirname, config.sfx.sounds[name].file);
   const assetRoot = path.resolve(__dirname, 'assets', 'audio') + path.sep;
   if (!output.startsWith(assetRoot) || !output.endsWith('.wav')) throw Error('Generator writes only WAVs inside assets/audio');
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, wav);
@@ -117,7 +117,7 @@ function createSounds() {
 }
 module.exports = { createSounds, rate };
 if (require.main === module) {
-  if (!process.argv.includes('--force') && Object.values(config.sounds).some(sound => fs.existsSync(path.join(__dirname, sound.file)))) {
+  if (!process.argv.includes('--force') && Object.values(config.sfx.sounds).some(sound => fs.existsSync(path.join(__dirname, sound.file)))) {
     throw Error('Audio files already exist. Use --force only to overwrite them with synthesized placeholders.');
   }
   for (const [name, data] of Object.entries(createSounds())) writeWav(name, data);
