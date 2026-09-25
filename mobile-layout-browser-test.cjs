@@ -48,8 +48,10 @@ const path = require('node:path');
       if (width === 320 || width === 390) await page.screenshot({ path: path.join(__dirname, `mobile-layout-${width}-chart.png`), fullPage: true });
       if (width === 390) {
         await page.setViewportSize({ width: 1200, height: 900 });
+        await page.waitForFunction(() => document.getElementById('chart-details').open);
         assert.equal(await page.locator('#chart-details').evaluate(el => el.open), true, 'Desktop shows information by default');
         await page.setViewportSize({ width, height });
+        await page.waitForFunction(() => !document.getElementById('chart-details').open);
         assert.equal(await page.locator('#chart-details').evaluate(el => el.open), false, 'Returning to mobile collapses information');
         await page.locator('#chart-world').tap();
         const target = await page.evaluate(() => {
