@@ -4,7 +4,7 @@
     const key = 'windward-audio-enabled', config = root.WindwardAudio;
     const AudioContext = root.AudioContext || root.webkitAudioContext;
     const loops = new Map(), buffers = new Map(), pending = new Map(), voices = new Set();
-    let enabled = true, context, master, failed = !AudioContext || !config, resuming = false;
+    let enabled = true, context, master, failed = !AudioContext || !config, resuming = false, resumeAttempt = 0;
     let scene = { active: false, sea: false, moving: false }, signature = '';
     let nextGullAt = 0, nextCreakAt = 0, bellRequest = 0, loadWarning = false;
     try { enabled = localStorage.getItem(key) !== 'off'; } catch (_) {}
@@ -86,7 +86,7 @@
       source.onended = () => { source.disconnect(); gain.disconnect(); pan?.disconnect(); voices.delete(voice); };
       source.start();
     }
-    function sync() {
+    function sync(fromGesture = false) {
       if (!context || failed) return;
       if (!enabled || !scene.active) {
         master.gain.cancelScheduledValues(context.currentTime); master.gain.setValueAtTime(0, context.currentTime);
@@ -108,13 +108,16 @@
       else stop('bell');
       if (!scene.sea || !scene.moving) { stop('turn'); nextCreakAt = 0; }
       else if (!scene.turning) stop('turn', false);
-      if (context.state !== 'running' && !resuming) {
+      if (context.state !== 'running' && (!resuming || fromGesture)) {
+        // A blocked resume promise can stay pending; a later gesture must retry it.
+        const attempt = ++resumeAttempt;
         resuming = true;
         context.resume().then(() => {
+          if (attempt !== resumeAttempt) return;
           resuming = false;
           if (!enabled || !scene.active) sync();
           report();
-        }).catch(() => { resuming = false; report(); });
+        }).catch(() => { if (attempt === resumeAttempt) { resuming = false; report(); } });
       }
       report();
     }
@@ -141,9 +144,10 @@
       if (signature !== nextSignature) { signature = nextSignature; sync(); }
       updateEffects();
     }
-    function unlock() { if (!enabled || failed) return; initialize(); sync(); }
+    function unlock() { if (!enabled || failed) return; initialize(); sync(true); }
     function toggle() {
       if (failed) { notify('이 브라우저에서는 항해 소리를 사용할 수 없습니다.'); return; }
+      if (enabled && scene.active && context && context.state !== 'running') { unlock(); return; }
       enabled = !enabled;
       try { localStorage.setItem(key, enabled ? 'on' : 'off'); } catch (_) {}
       if (enabled && scene.active) unlock(); else sync();

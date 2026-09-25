@@ -473,15 +473,22 @@
   voyage = window.createVoyageUI({ read: () => state, steer, navigate, toggle: type => perform({ type }), notify: toast });
   sound = window.createSeaAudio({ notify: toast, changed: ({ enabled, supported, waiting }) => {
     document.querySelectorAll('[data-sound]').forEach(button => {
-      button.textContent = !supported ? '소리 미지원' : waiting ? '소리 대기' : enabled ? '소리 켜짐' : '소리 꺼짐';
+      button.textContent = !supported ? '소리 미지원' : waiting ? '소리 재개' : enabled ? '소리 켜짐' : '소리 꺼짐';
       button.setAttribute('aria-pressed', String(enabled && supported));
-      button.setAttribute('aria-label', !supported ? '항해 소리 미지원' : enabled ? '항해 소리 끄기' : '항해 소리 켜기');
-      button.title = waiting ? '화면을 터치하면 소리가 재개됩니다. 누르면 소리를 끕니다.' : '은은한 물살·바람·갈매기·선박·입항 알림음';
+      button.setAttribute('aria-label', !supported ? '항해 소리 미지원' : waiting ? '항해 소리 재개' : enabled ? '항해 소리 끄기' : '항해 소리 켜기');
+      button.title = waiting ? '누르면 대기 중인 항해 소리를 재개합니다.' : '은은한 물살·바람·갈매기·선박·입항 알림음';
       button.disabled = !supported;
     });
   } });
-  document.addEventListener('pointerdown', () => { if (playing) sound.unlock(); });
-  document.addEventListener('keydown', () => { if (playing) sound.unlock(); });
+  function unlockSound(event) {
+    if (!event.isTrusted || !playing || pageLeaving || document.hidden || event.target.closest?.('[data-sound]')) return;
+    if (event.type === 'pointerdown' && event.pointerType !== 'mouse') return;
+    sound.unlock();
+  }
+  // Touch activation happens on release. Leave the sound button to its own handler.
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click']) {
+    document.addEventListener(type, unlockSound, { capture: true, passive: true });
+  }
   $('chart-screen').addEventListener('pointerdown', event => { if (chartReturnAt) chartPointers.add(event.pointerId); });
   const releaseChartPointer = event => {
     if (chartPointers.delete(event.pointerId) && chartReturnAt) chartReturnAt = performance.now() + 3000;
