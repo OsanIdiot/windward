@@ -72,3 +72,25 @@ test('all current sounds are effects and music is a separate empty bank', () => 
   assert.equal(config.music.gain, 1);
   assert.equal(config.master, .45);
 });
+
+test('recorded arrival bell has three close attacks, a fading tail and safe levels', () => {
+  assert.equal(config.sfx.sounds.bell.file, 'assets/audio/arrival-bell-recorded.wav');
+  const bytes = fs.readFileSync(path.join(__dirname, config.sfx.sounds.bell.file));
+  assert.equal(bytes.readUInt16LE(20), 1);
+  assert.equal(bytes.readUInt16LE(22), 1);
+  assert.equal(bytes.readUInt32LE(24), 32000);
+  assert.equal(bytes.readUInt16LE(34), 16);
+  const data = Array.from({ length: (bytes.length - 44) / 2 }, (_, i) => bytes.readInt16LE(44 + i * 2) / 32768);
+  assert.equal(data.length / 32000, 2.4);
+  assert.ok(data.reduce((max, x) => Math.max(max, Math.abs(x)), 0) <= .551);
+  const rms = (start, end) => {
+    const part = data.slice(Math.round(start * 32000), Math.round(end * 32000));
+    return Math.sqrt(part.reduce((sum, x) => sum + x * x, 0) / part.length);
+  };
+  for (const at of [.04, .22, .40]) assert.ok(rms(at, at + .04) > rms(at - .04, at - .02) * 1.4);
+  assert.ok(rms(.8, .9) > .01, 'Last recorded strike rings out');
+  assert.ok(rms(1.04, 1.14) > .0005, 'Quiet final reverberation');
+  assert.ok(rms(1.4, 1.5) < rms(1.04, 1.14), 'Tail decays');
+  assert.equal(rms(0, .02), 0);
+  assert.equal(rms(2.38, 2.4), 0);
+});

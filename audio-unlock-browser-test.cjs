@@ -82,7 +82,7 @@ const assert = require('node:assert/strict');
       await click(sound); await waitAudio();
 
       await click('#voyage-enter-port'); await ready('#dock');
-      await p.waitForFunction(() => audioProbe.buffers.some(b => !b.loop && Math.abs(b.duration - 4.14) < .001));
+      await p.waitForFunction(() => audioProbe.buffers.some(b => !b.loop && Math.abs(b.duration - 2.4) < .001));
       assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1, 'Port entry keeps the unlocked audio graph');
       assert.equal(await p.locator(sound).innerText(), '소리 켜짐');
       await click('#harbor-button'); await ready('#voyage-screen'); await waitAudio();

@@ -93,7 +93,7 @@ async function instrument(context) {
     await page.locator('#voyage-rescue').click();
     await page.locator('#voyage-enter-port').click();
     await page.locator('#dock').waitFor({ state: 'visible' });
-    await page.waitForFunction(() => audioProbe.buffers.some(source => !source.loop && Math.abs(source.duration - 4.14) < .001));
+    await page.waitForFunction(() => audioProbe.buffers.some(source => !source.loop && Math.abs(source.duration - 2.4) < .001));
     assert.equal(await page.evaluate(() => audioProbe.oscillators), 0, 'Arrival uses the replaceable bell WAV');
     await page.waitForFunction(() => audioProbe.buffers.filter(source => !source.loop).every(source => source.ended), null, { timeout: 6000 });
     await page.locator('#harbor-button').click(); await page.locator('#voyage-enter-port').click();
@@ -109,7 +109,7 @@ async function instrument(context) {
     await page.waitForFunction(() => audioProbe.buffers.filter(source => !source.loop).every(source => source.ended));
     await page.locator('#voyage-enter-port').click();
     await page.locator('#dock').waitFor({ state: 'visible' });
-    await page.waitForFunction(() => audioProbe.buffers.some(source => !source.loop && Math.abs(source.duration - 4.14) < .001));
+    await page.waitForFunction(() => audioProbe.buffers.some(source => !source.loop && Math.abs(source.duration - 2.4) < .001));
     await page.waitForFunction(() => audioProbe.buffers.filter(source => !source.loop).every(source => source.ended), null, { timeout: 6000 });
     await page.waitForFunction(() => audioProbe.gains[1].gain.value < .01 && audioProbe.gains[2].gain.value < .01);
     assert.equal(await page.evaluate(() => audioProbe.buffers.filter(source => !source.loop && Math.abs(source.duration - 1.65) < .001).length), 0, 'Gulls do not sound inside port');

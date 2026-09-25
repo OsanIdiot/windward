@@ -18,7 +18,7 @@ const assert = require('node:assert/strict');
             this.decodeAudioData = async bytes => { const buffer = await decode(bytes); loadingProbe.decoded++; return buffer; };
             this.createBufferSource = () => {
               const node = source(), start = node.start.bind(node);
-              node.start = (...args) => { if (Math.abs(node.buffer.duration - 4.14) < .001) loadingProbe.bells++; start(...args); };
+              node.start = (...args) => { if (Math.abs(node.buffer.duration - 2.4) < .001) loadingProbe.bells++; start(...args); };
               return node;
             };
           }
@@ -32,7 +32,7 @@ const assert = require('node:assert/strict');
       const { context, page } = await setup();
       let release;
       const gate = new Promise(resolve => { release = resolve; });
-      await page.route('**/assets/audio/arrival-bell.wav*', async route => { await gate; await route.continue(); });
+      await page.route('**/assets/audio/arrival-bell-recorded.wav*', async route => { await gate; await route.continue(); });
       await page.goto(url);
       assert.equal(await page.evaluate(() => loadingProbe.contexts.length), 0);
       await page.locator('#start-button').click();

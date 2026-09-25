@@ -1,6 +1,6 @@
 (function (root) {
   const config = {
-    version: '36',
+    version: '38',
     master: .45,
     sfx: {
       gain: 1,
@@ -13,7 +13,7 @@
         turn2: { file: 'assets/audio/turn-recorded-2.wav', gain: 1 },
         turn3: { file: 'assets/audio/turn-recorded-3.wav', gain: 1 },
         gull: { file: 'assets/audio/gull.wav', gain: .085 },
-        bell: { file: 'assets/audio/arrival-bell.wav', gain: 1 }
+        bell: { file: 'assets/audio/arrival-bell-recorded.wav', gain: 1 }
       }
     },
     // Reserved for future background music; never loaded by the effects player.
