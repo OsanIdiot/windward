@@ -152,7 +152,7 @@
 
 .arrival-panel .rescue-button{display:flex;flex-direction:column;gap:4px;flex:0 0 auto;min-height:48px;padding:8px 12px;font-size:12px}
 .rescue-button span,.rescue-button small{white-space:nowrap}.rescue-button small{font-size:10px;color:var(--muted);font-weight:400}
-/* Keep maps readable on short phones; allow content to scroll instead of squeezing it. */
+/* Keep mobile controls compact and anchor chart tools inside the map. */
 @media(max-width:900px){
   body.playing main{margin-inline:max(12px,env(safe-area-inset-left)) max(12px,env(safe-area-inset-right));padding:0 0 max(8px,env(safe-area-inset-bottom))}
   #game-screen{padding:0}
@@ -190,12 +190,11 @@
   .harbor-caption{padding:8px 0;display:block}
   .harbor-caption p{font-size:10px;line-height:1.5}
   .harbor-caption>span{display:block;margin-top:4px;font-size:8px}
-  .chart #sea-map{height:clamp(300px,calc(100svh - 548px - env(safe-area-inset-bottom)),520px);min-height:300px}
-  .chart-topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px;background:#edf0df;border-bottom:1px solid #9ab4a4}
-  .chart-topbar .chart-note{position:static;padding:0;font-size:10px;letter-spacing:1px}
-  .chart-topbar .chart-tools{position:static;margin-left:auto;flex-shrink:0}
-  .chart-topbar .chart-tools button{min-width:44px;min-height:44px;font-size:10px;padding:6px 8px}
-  .chart-topbar .chart-tools #zoom-in,.chart-topbar .chart-tools #zoom-out{font-size:19px}
+  .chart #sea-map{height:calc(100svh - 548px - env(safe-area-inset-bottom));min-height:180px}
+  .chart .chart-note{top:9px;left:9px;max-width:calc(100% - 236px);padding:5px;font-size:10px;letter-spacing:0;line-height:1.5;word-break:keep-all}
+  .chart .chart-tools{position:absolute;top:9px;right:9px;z-index:2;margin:0;flex-wrap:nowrap}
+  .chart .chart-tools button{min-width:44px;min-height:44px;font-size:10px;padding:6px 8px}
+  .chart .chart-tools #zoom-in,.chart .chart-tools #zoom-out{font-size:19px}
   .navigation-toolbar{padding-top:6px;gap:6px;display:grid;grid-template-columns:1fr auto}
   #goals-button{justify-self:start;grid-column:1;grid-row:1}
   .navigation-toolbar button{min-height:44px}
@@ -211,6 +210,7 @@
   .place-button small{white-space:nowrap}
   #dock #harbor-button{min-width:105px;padding:9px 11px}
 }
+@media(max-width:380px){.chart .chart-note small{display:none}}
 .goals-dialog{width:calc(100% - 24px);max-width:660px;max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:0;overflow-y:auto;overscroll-behavior:contain}
 .goals-header{position:sticky;top:0;z-index:1;background:var(--paper);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
 .goals-header h2{font-size:23px;margin:0}.goals-header button{min-height:44px;padding:8px 14px}

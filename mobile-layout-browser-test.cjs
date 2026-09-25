@@ -10,7 +10,7 @@ const path = require('node:path');
       const context = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=27');
+      await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4173/?v=28');
       if (width === 412) {
         await page.evaluate(() => {
           const state = Windward.initial();
@@ -47,12 +47,14 @@ const path = require('node:path');
       assert.equal(await page.locator('#chart-details, #chart-screen .chart-instructions').count(), 0);
       assert.equal(await page.locator('#route-panel').isVisible(), true);
       assert.match(await page.locator('#route-panel').innerText(), /미확인 항구는 직접 접근해 입항하세요/);
-      await checkHeight('chart', Math.max(110,940-height));
+      await checkHeight('chart', width > height ? 330 : height < 700 ? 160 : 0);
       const map = await page.locator('#sea-map').boundingBox();
       const tools = await page.locator('.chart-tools').boundingBox();
       const title = await page.locator('.chart-note').boundingBox();
-      assert.ok(map.height >= 300, 'Short mobile screens retain a usable map height');
-      assert.ok(tools.y+tools.height <= map.y && title.y+title.height <= map.y, 'Map controls and title do not cover the sea');
+      assert.ok(map.height >= 180, 'Original compact chart height is retained');
+      assert.ok(tools.y >= map.y && tools.y-map.y <= 12, 'Controls are pinned to the map top');
+      assert.ok(map.x+map.width-tools.x-tools.width >= 0 && map.x+map.width-tools.x-tools.width <= 12, 'Controls are pinned to the map right');
+      assert.equal(await page.locator('.chart-topbar').count(),0,'No separate toolbar row');
       assert.ok(title.x+title.width<=tools.x || title.y+title.height<=tools.y, 'Map title and controls do not overlap');
       const ports = await page.locator('.port-selector').evaluate(el => {
         const outer = el.getBoundingClientRect();
@@ -82,7 +84,7 @@ const path = require('node:path');
         });
         await page.touchscreen.tap(target.x, target.y);
         await page.locator('#open-chart-button').tap();
-        await checkHeight('moving chart',110);
+        await checkHeight('moving chart');
         assert.match(await page.locator('#route-panel').innerText(), /남은 항로/);
         await page.waitForFunction(() => !document.getElementById('voyage-screen').hidden, null, { timeout: 4000 });
         await page.locator('#voyage-pause').tap();
@@ -117,6 +119,6 @@ const path = require('node:path');
       await context.close();
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: readable mobile map, unobstructed map controls, two-row ports, route notice, dialog scrolling, automatic return and rescue layout/action on six viewport sizes.');
+    console.log('PASS: map controls anchored top-right, compact chart height, two-row ports, route notice, dialog scrolling, automatic return and rescue layout/action on six viewport sizes.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
