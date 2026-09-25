@@ -29,6 +29,7 @@ const E = require('./engine.js');
     await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem(Windward.KEY)); return s.motion.speed > 0 && s.motion.speed < .6; });
     assert.match(await page.locator('#voyage-speed').innerText(), /가속 중/);
     await page.waitForFunction(() => JSON.parse(localStorage.getItem(Windward.KEY)).motion.speed > .95);
+    await page.waitForFunction(() => document.getElementById('voyage-speed').textContent.includes('순항'));
     assert.match(await page.locator('#voyage-speed').innerText(), /순항/);
     await page.locator('#voyage-canvas').focus(); await page.keyboard.press('ArrowRight');
     await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem(Windward.KEY)); return s.motion.turning && s.motion.speed < .8; });

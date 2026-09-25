@@ -50,11 +50,11 @@ test('departure accelerates smoothly and pause/resume starts again from rest',()
   assert.ok(N.distance(resumed.position,s.position)<1);
 });
 
-test('all ship tiers cruise 30 percent slower without changing distance-based travel costs',()=>{
+test('all ship tiers cruise at half the previous maximum without changing distance-based travel costs',()=>{
   for(let tier=0;tier<E.SHIPS.length;tier++) for(const mode of ['manual','auto']) {
     const s=openWater();s.ship=tier;s.motion.speed=1;s.navigation.mode=mode;
     const next=E.advance(s,1),distance=N.distance(s.position,next.position);
-    assert.ok(Math.abs(distance-45*.7*E.SHIPS[tier].speed)<1e-7,`${mode} tier ${tier+1} speed`);
+    assert.ok(Math.abs(distance-31.5*.5*E.SHIPS[tier].speed)<1e-7,`${mode} tier ${tier+1} speed`);
     assert.equal(next.motion.speed,1,'HUD still shows full cruise at the new maximum');
     const quote=E.passage(s,s.navigation.points),arrived=run(next);
     assert.equal(arrived.gold,s.gold-quote.cost);
@@ -78,7 +78,8 @@ test('turning slows the ship without teleporting and straight sailing restores c
 test('route corners brake in advance while retaining the safe waypoint path',()=>{
   let s=openWater();const corner=N.project(-12,36),end=N.project(-7.5,36);
   s.navigation.points=[corner,end];s.motion.speed=1;
-  while(N.distance(s.position,corner)>18)s=E.advance(s,.1);
+  // Lower cruise speed shortens the approach-braking distance.
+  while(N.distance(s.position,corner)>9)s=E.advance(s,.1);
   assert.equal(s.navigation.points.length,2);
   assert.ok(s.motion.speed<.9);assert.equal(s.motion.turning,true);
   const result=run(s);assert.ok(N.distance(result.position,end)<.01);
