@@ -11,6 +11,7 @@
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, sound, seaView = 'sea';
   let previousFrame = 0, lastSave = 0, seaDiscoveriesUI;
+  let marketNewsDay = 0;
   let chartReturnAt = 0;
   const chartPointers = new Set();
   let playing = false, hasVoyage = false, pageLeaving = false, pendingPortBell = 0;
@@ -165,16 +166,43 @@
     return `<div class="goods-art"><svg viewBox="0 0 30 30" fill="none" stroke="${good.color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[good.id]}</svg></div>`;
   }
   function renderMap() { chart?.render(); }
+  function marketNewsButton() {
+    const news = E.marketEvent(state);
+    return `<button class="market-news-button secondary" data-market-news aria-haspopup="dialog" aria-controls="market-news-dialog"><span>시세 소식 · ${news ? news.title : '평온한 시장'}</span><small>${news ? `${E.portLabel(state, news.port)} · ${news.endDay}일째까지 (오늘 포함 ${news.remaining}일)` : '현재 특별 수요 없음 · 기본 시세로 거래'}</small></button>`;
+  }
+  function renderMarketNews() {
+    marketNewsDay = state.day;
+    const news = E.marketEvent(state);
+    $('market-news-date').textContent = `항해 ${state.day}일째 · 게임 날짜 기준`;
+    if (!news) {
+      $('market-news-content').innerHTML = '<article class="market-bulletin"><p class="eyebrow">QUIET MARKETS</p><h3>평온한 시장</h3><p>지난 특별 수요가 끝났습니다. 모든 항구가 기본 시세로 거래합니다.</p><p class="hint">항해와 탐험으로 게임 날짜가 흐르면 새로운 소식이 찾아옵니다. 현실 시간이나 새로고침으로 시세가 바뀌지는 않습니다.</p></article>';
+      return;
+    }
+    const good = E.GOODS.find(g => g.id === news.good), port = E.portOf(news.port);
+    const base = port.prices[E.GOODS.indexOf(good)], current = E.price(state, good.id, port.id);
+    let passageNote = '';
+    if (state.visited.includes(port.id)) {
+      const trip = E.passage(state, E.N.route(state.position, port));
+      passageNote = `<p class="market-passage">${state.port === port.id ? '현재 항구에 적용 중인 시세입니다.' : `해도 경로 기준 약 ${trip.days}일 · 경비 ${trip.cost} G. ${state.day + trip.days > news.endDay ? '지금 출발해도 종료 후 도착할 것으로 예상됩니다.' : '우회하거나 탐험하면 도착이 늦어질 수 있습니다.'}`}</p>`;
+    }
+    $('market-news-content').innerHTML = `<article class="market-bulletin" data-market-event="${news.id}"><p class="eyebrow">WORD FROM THE MERCHANTS</p><h3>${news.title}</h3><p class="market-destination">${E.portLabel(state, port.id)} · ${good.name}</p><p>${news.story}</p>${!state.visited.includes(port.id) ? `<p class="hint">${news.region}. 아직 방문하지 않은 항구입니다. 소식만으로 항구 이름이나 자동항해가 열리지는 않습니다.</p>` : ''}<p class="market-deadline ${news.remaining <= 3 ? 'ending' : ''}">${news.startDay}~${news.endDay}일째 · 오늘 포함 ${news.remaining}일 남음${news.remaining <= 3 ? '<br>곧 종료됩니다. 도착 전에 기본 시세로 돌아갈 수 있습니다.' : ''}</p><dl class="market-news-prices"><div><dt>현지에서 내가 팔 때</dt><dd>${Math.floor(base * .9)} → <strong>${current.sell} G</strong></dd></div><div><dt>현지에서 내가 살 때</dt><dd>${base} → <strong>${current.buy} G</strong></dd></div></dl><p class="hint">기준 구매가 +${news.percent}% · 판매가는 구매가의 90%에서 소수점 버림. 구매가도 함께 오릅니다.</p><p>다른 항구에서 준비한 ${good.name}${good.id === 'timber' ? '를' : '을'} 가져가 판매할 수 있습니다. 탐험하러 가는 길에 함께 거래해 보세요.</p><p class="hint">종료 다음 날(${news.endDay + 1}일째)부터 기본 시세로 돌아옵니다. 납품 의뢰 보상은 변하지 않으며, 실제 거래 시점의 가격이 적용됩니다.</p></article>`;
+    if (passageNote) $('market-news-content').querySelector('.market-deadline').insertAdjacentHTML('afterend', passageNote);
+  }
   function renderMarket() {
     const port = E.portOf(state.port);
     const active = E.CONTRACTS.find(c => c.id === state.activeContract);
-    $('dock-content').innerHTML = `${active ? `<div class="contract-reminder">납품 예정: ${E.GOODS.find(g => g.id === active.good).name} ${active.qty}개 → ${E.portLabel(state, active.to)}<br>일반 판매 시 의뢰용 물품도 차감됩니다. <button class="text-button" data-open-tab="contracts">의뢰 확인</button></div>` : ''}<div class="market-top"><p>항구별 고정 시세 · 1단위 기준</p><div class="segmented" aria-label="거래 방식"><button data-side="buy" aria-pressed="${side === 'buy'}" class="${side === 'buy' ? 'active' : ''}">구매</button><button data-side="sell" aria-pressed="${side === 'sell'}" class="${side === 'sell' ? 'active' : ''}">판매</button></div></div>
+    const news = E.marketEvent(state);
+    $('dock-content').innerHTML = `${marketNewsButton()}${active ? `<div class="contract-reminder">납품 예정: ${E.GOODS.find(g => g.id === active.good).name} ${active.qty}개 → ${E.portLabel(state, active.to)}<br>일반 판매 시 의뢰용 물품도 차감됩니다. <button class="text-button" data-open-tab="contracts">의뢰 확인</button></div>` : ''}<div class="market-top"><p>현재 시세 · 1단위 기준</p><div class="segmented" aria-label="거래 방식"><button data-side="buy" aria-pressed="${side === 'buy'}" class="${side === 'buy' ? 'active' : ''}">구매</button><button data-side="sell" aria-pressed="${side === 'sell'}" class="${side === 'sell' ? 'active' : ''}">판매</button></div></div>
       ${E.GOODS.map(g => {
         const prices = E.price(state, g.id), qty = quantity(g.id), max = maxQuantity(g.id);
         return `<article class="commodity" data-good="${g.id}"><div class="commodity-head">${goodsArt(g)}<div class="commodity-info"><h3>${g.name}${port.specialty === g.id ? '<span class="badge">특산품</span>' : ''}</h3><p>보유 ${state.cargo[g.id]}${g.unit} <i>·</i> ${side === 'buy' ? '매입' : '판매'} 가능 ${max}</p></div><div class="commodity-price">${prices[side]} <small>G</small><p>${side === 'buy' ? `판매가 ${prices.sell}` : `구매가 ${prices.buy}`} G</p></div></div><div class="trade-controls"><div class="stepper"><button data-step="-1" data-good="${g.id}" aria-label="${g.name} 수량 줄이기" ${qty <= 1 ? 'disabled' : ''}>−</button><input type="number" inputmode="numeric" id="qty-${g.id}" data-quantity="${g.id}" aria-label="${g.name} 거래 수량" min="${max ? 1 : 0}" max="${max}" value="${qty}" ${max ? '' : 'disabled'}><button data-step="1" data-good="${g.id}" aria-label="${g.name} 수량 늘리기" ${qty >= max ? 'disabled' : ''}>+</button></div><button class="max-button" data-max="${g.id}" ${max ? '' : 'disabled'}>최대</button><button class="trade-button" data-trade="${g.id}" ${qty ? '' : 'disabled'}>${side === 'buy' ? '구매' : '판매'} · ${number(qty * prices[side])} G</button></div></article>`;
       }).join('')}
-      <div class="market-tip">선장의 메모<br>${port.id === 'lume' ? '밀은 이곳에서 16 G, 카디스에서는 27 G에 팔 수 있어요. 출항 경비를 남겨두는 것도 잊지 마세요.' : port.id === 'haven' ? '이곳은 수입품 가격이 높은 자유항입니다. 다른 항구의 특산품을 가져와 판매해 보세요.' : `${E.GOODS.find(g => g.id === port.specialty).name}은(는) 이 항구의 특산품입니다. 저렴하게 매입해서 베네치아으로 운반해 보세요.`}</div>
+      <div class="market-tip">선장의 메모<br>${port.id === 'lume' ? `밀은 현재 이곳에서 ${E.price(state, 'grain').buy} G, 남동쪽 항구에서는 ${E.price(state, 'grain', 'cedar').sell} G에 팔 수 있어요. 도착 시점의 시세와 출항 경비도 확인하세요.` : port.id === 'haven' ? '이곳은 수입품 가격이 높은 자유항입니다. 다른 항구의 특산품을 가져와 판매해 보세요.' : `${E.GOODS.find(g => g.id === port.specialty).name}은(는) 이 항구의 특산품입니다. 시세 소식과 항해 경비를 살펴 교역할 항구를 골라보세요.`}</div>
       ${state.gold < 80 ? '<div class="relief"><button class="secondary" id="relief-button">부두 일하기 · 3일 / +100 G</button><p class="hint">금화가 80 G 미만이면 다시 항해할 수 있도록 일자리가 제공됩니다.</p></div>' : ''}`;
+    if (news?.port === port.id) {
+      const row = $('dock-content').querySelector(`[data-good="${news.good}"] .commodity-info`);
+      row.insertAdjacentHTML('beforeend', `<p class="market-price-note">수요 증가 · ${news.endDay}일째까지</p>`);
+    }
   }
   function updateQuantity(good, value) {
     const max = maxQuantity(good);
@@ -341,6 +369,7 @@
     }
     voyage?.render(stamp);
     seaDiscoveriesUI?.render(stamp);
+    if ($('market-news-dialog').open && marketNewsDay !== state.day) renderMarketNews();
     updateChartPeek(stamp);
     syncSound();
     if (pendingPortBell) {
@@ -358,6 +387,11 @@
     if (button.hasAttribute('data-sound')) { pendingPortBell = 0; sound.toggle(); return; }
     if (button.hasAttribute('data-support')) { window.open('https://litt.ly/iwiwi', '_blank', 'noopener,noreferrer'); return; }
     if (button.dataset.close) { $(button.dataset.close).close(); return; }
+    if (button.hasAttribute('data-market-news')) {
+      if (!playing || !session.check()) return;
+      renderMarketNews(); $('market-news-dialog').showModal(); $('market-news-dialog').scrollTop = 0;
+      $('market-news-title').focus({ preventScroll: true }); return;
+    }
     if (button.id === 'help-button' || button.hasAttribute('data-help')) { $('help-dialog').showModal(); return; }
     if (button.id === 'goals-button') {
       renderStats(); $('goals-dialog').showModal(); $('goals-dialog').scrollTop = 0;

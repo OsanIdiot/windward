@@ -26,8 +26,9 @@ test('tutorial trade route earns money after travel expense', () => {
   let s = trade(E.initial(), 'buy', 'grain', 10);
   const q = knownQuote(s, 'cedar');
   s = travel(s, 'cedar');
+  const sale = E.price(s, 'grain').sell * 10;
   s = trade(s, 'sell', 'grain', 10);
-  assert.equal(s.gold, 700 - 160 - q.cost + 270);
+  assert.equal(s.gold, 700 - 160 - q.cost + sale);
   assert.ok(s.gold > 700); assert.equal(s.cargo.grain, 0);
   assert.deepEqual(s.visited, ['lume', 'cedar']); assert.ok(E.valid(s));
 });

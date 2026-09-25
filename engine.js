@@ -96,11 +96,25 @@
   const nearbyPort = state => PORTS.find(p => N.distance(state.position, p) <= 6 && N.clear(state.position, p)) || null;
   const portLabel = (state, id) => state.visited.includes(id) ? portOf(id).name : '미확인 항구';
   const used = state => Object.values(state.cargo).reduce((a, b) => a + b, 0);
+  const MARKET_EVENTS = [
+    { id: 'grain-shortage', port: 'cedar', good: 'grain', percent: 30, title: '밀 공급 부족', region: '리스본 남동쪽, 지브롤터 서편의 항구', story: '곡물 수송이 늦어져 제빵사들이 밀을 구하고 있습니다.' },
+    { id: 'timber-demand', port: 'lume', good: 'timber', percent: 25, title: '부두 수리용 목재 수요', region: '이베리아 서쪽, 테주강 하구의 항구', story: '부두 수리가 시작되어 상인들이 목재를 평소보다 비싸게 사고 있습니다.' },
+    { id: 'cloth-demand', port: 'marseille', good: 'cloth', percent: 25, title: '축제용 직물 수요', region: '서부 지중해 북쪽, 프로방스 해안의 항구', story: '축제를 앞두고 천막과 장식에 쓸 직물을 찾는 사람이 늘었습니다.' }
+  ];
+  function marketEvent(state) {
+    // Twenty game days of demand, then four quiet days. Reloading never rerolls prices.
+    const cycle = Math.floor((state.day - 1) / 24), elapsed = (state.day - 1) % 24;
+    if (elapsed >= 20) return null;
+    return { ...MARKET_EVENTS[cycle % MARKET_EVENTS.length], startDay: cycle * 24 + 1, endDay: cycle * 24 + 20, remaining: 20 - elapsed };
+  }
   function price(state, good, portId = state.port) {
     const index = GOODS.findIndex(g => g.id === good);
     const port = portOf(portId);
     if (!port || index < 0) throw Error('알 수 없는 항구 또는 상품입니다.');
-    return { buy: port.prices[index], sell: Math.floor(port.prices[index] * 0.9) };
+    const event = marketEvent(state);
+    const affected = event?.port === portId && event.good === good;
+    const buy = affected ? Math.ceil(port.prices[index] * (100 + event.percent) / 100) : port.prices[index];
+    return { buy, sell: Math.floor(buy * 0.9) };
   }
   function quote(state, destination) {
     const to = portOf(destination);
@@ -434,7 +448,7 @@
     next.motion = { ...(next.motion || motionDefaults(next)), speed: 0, turning: false, braking: false };
     return JSON.parse(JSON.stringify(next));
   }
-  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SEA_RUMORS, rumorStage, SIGHT_RANGE, SURVEY_RANGE, seaSightings, windAt, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
+  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SEA_RUMORS, rumorStage, MARKET_EVENTS, marketEvent, SIGHT_RANGE, SURVEY_RANGE, seaSightings, windAt, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Windward = api;
 })(typeof window !== 'undefined' ? window : globalThis);

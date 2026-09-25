@@ -59,7 +59,12 @@ const E = require('./engine.js');
           if (Windward.N.distance(s.position,p)<80) continue;
           const c=new DOMPoint(p.x,p.y).matrixTransform(document.getElementById('sea-map').getScreenCTM());
           const hit=document.elementFromPoint(c.x,c.y);
-          if (hit?.closest('#sea-map') && !hit.closest('[data-port]')) return {x:c.x,y:c.y};
+          // Mobile touch adjustment can select a nearby port even when the exact point is water.
+          const nearPort = [...document.querySelectorAll('#sea-map [data-port]')].some(el => {
+            const r = el.getBoundingClientRect();
+            return c.x >= r.left - 12 && c.x <= r.right + 12 && c.y >= r.top - 12 && c.y <= r.bottom + 12;
+          });
+          if (hit?.closest('#sea-map') && !nearPort) return {x:c.x,y:c.y};
         }
         throw Error('No clear, unobstructed test sea target');
       });
