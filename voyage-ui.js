@@ -5,6 +5,7 @@
     const canvas = $('voyage-canvas'), ctx = canvas.getContext('2d');
     const mini = $('voyage-minimap'), mc = mini.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const compact = matchMedia('(max-width: 740px)');
     const land = new Path2D(N.G.rings.map(r => 'M' + r.map(p => p.join(',')).join('L') + 'Z').join(''));
     let width = 0, height = 0, scale = 1, cx = 0, cy = 0, heading = 225, lastStamp = 0, portKey = '';
     let trail = [], previous = null, press = null, lastHUD = 0;
@@ -153,7 +154,7 @@
         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#355d53'; ctx.textAlign = 'center'; ctx.font = '15px Georgia';
         ctx.fillText(found ? '+' : '?', 0, 5);
-        ctx.font = '11px Georgia'; ctx.fillText(found ? site.name : known ? '해상 단서' : '수평선의 흔적', -23, -18);
+        ctx.font = `${compact.matches ? 9 : 10}px Georgia`; ctx.fillText(found ? site.name : known ? '해상 단서' : '수평선의 흔적', -23, -18);
         ctx.restore();
       }
       ship(time,moving,state.ship,state.motion?.speed??1);

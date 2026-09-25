@@ -73,6 +73,17 @@ test('all current sounds are effects and music is a separate empty bank', () => 
   assert.equal(config.master, .45);
 });
 
+test('water is quieter at every speed and the arrival bell is reduced independently', () => {
+  assert.equal(config.sfx.sounds.water.gain, .75);
+  assert.equal(config.sfx.sounds.bell.gain, .8);
+  for (const speed of [0, .1, .5, 1]) {
+    const previous = .08 + .92 * speed;
+    assert.equal(previous * config.sfx.sounds.water.gain / previous, .75);
+  }
+  assert.equal(config.sfx.sounds.wind.gain, 1);
+  assert.equal(config.sfx.sounds.gull.gain, .085);
+});
+
 test('recorded arrival bell has three close attacks, a fading tail and safe levels', () => {
   assert.equal(config.sfx.sounds.bell.file, 'assets/audio/arrival-bell-recorded.wav');
   const bytes = fs.readFileSync(path.join(__dirname, config.sfx.sounds.bell.file));

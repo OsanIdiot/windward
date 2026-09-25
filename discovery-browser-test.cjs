@@ -8,6 +8,14 @@ const path = require('node:path');
     for (const width of [320, 390, 1280]) {
       const context = await browser.newContext({ viewport: { width, height: 844 }, isMobile: width < 740, hasTouch: width < 740, reducedMotion: 'reduce' });
       const page = await context.newPage(), errors = [];
+      await page.addInitScript(() => {
+        window.discoveryFonts = {};
+        const fillText = CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+          if (this.canvas.id === 'voyage-canvas' && ['수평선의 흔적', '해상 단서', '물새들의 쉼터'].includes(text)) discoveryFonts[text] = parseFloat(this.font);
+          return fillText.call(this, text, ...args);
+        };
+      });
       page.on('pageerror', error => errors.push(error.message));
       page.on('response', response => { if (response.status() >= 400) errors.push(response.url()); });
       await page.goto(process.env.BASE_URL || 'http://127.0.0.1:4176/?v=0.1.2');
@@ -18,6 +26,9 @@ const path = require('node:path');
       });
       await page.reload(); await page.locator('#start-button').click();
       await page.locator('#harbor-button').click();
+      await page.waitForFunction(() => Object.keys(discoveryFonts).length > 0);
+      const labelSizes = await page.evaluate(() => ({ names: Object.values(discoveryFonts), port: parseFloat(getComputedStyle(document.querySelector('.voyage-port')).fontSize) }));
+      assert.ok(labelSizes.names.every(size => size <= labelSizes.port), 'Discovery labels never exceed port names');
       await page.locator('#lookout-button').click();
       await page.locator('#sea-atlas-dialog').waitFor({ state: 'visible' });
       assert.equal(await page.locator('[data-sea-approach]').count(), 1);
@@ -43,6 +54,8 @@ const path = require('node:path');
       await page.keyboard.press('Escape');
       await page.locator('#open-chart-button').click();
       assert.equal(await page.locator('#sea-clue-markers>g').count(), 1);
+      assert.equal(await page.locator('#sea-clue-markers .port-caption').count(), 0);
+      assert.equal((await page.locator('#sea-clue-markers').textContent()).trim(), '+', 'Chart shows a symbol without the discovery name');
       await page.reload(); await page.locator('#start-button').click();
       await page.locator('#lookout-button').click();
       assert.match(await page.locator('#sea-atlas-count').innerText(), /1 \/ 5/);

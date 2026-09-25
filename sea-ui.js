@@ -61,7 +61,7 @@
         clueKey = nextClueKey;
         clueLayer.innerHTML = E.SEA_SITES.filter(s => state.seaClues.includes(s.id)).map(s => {
           const found = state.seaDiscoveries.includes(s.id);
-          return `<g transform="translate(${s.x} ${s.y})"><g class="marker-pixel"><circle r="9" fill="#f3eddc" stroke="#9b7051"/><text y="4" text-anchor="middle" fill="#386457" font-size="12">${found ? '+' : '?'}</text><text y="-15" text-anchor="middle" class="port-caption">${found ? s.name : '海 · 해상 단서'}</text></g></g>`;
+          return `<g transform="translate(${s.x} ${s.y})"><g class="marker-pixel"><circle r="9" fill="#f3eddc" stroke="#9b7051"/><text y="4" text-anchor="middle" fill="#386457" font-size="12">${found ? '+' : '?'}</text></g></g>`;
         }).join('');
       }
       document.querySelectorAll('.marker-pixel').forEach(g=>g.setAttribute('transform',`scale(${pixel})`));
