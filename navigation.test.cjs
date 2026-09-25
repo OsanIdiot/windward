@@ -46,19 +46,21 @@ test('departure accelerates smoothly and pause/resume starts again from rest',()
   assert.ok(distances[0]>0&&distances[0]<4);
   assert.ok(distances.every((d,i)=>i===0||d>=distances[i-1]));
   assert.ok(s.motion.speed>.95);
-  s=E.act(s,{type:'pause'});assert.equal(s.motion.speed,1);
+  const cruiseSpeed=s.motion.speed;
+  s=E.act(s,{type:'pause'});assert.equal(s.motion.speed,cruiseSpeed);
   s=run(s);assert.equal(s.motion.speed,0);
   const resumed=E.advance(E.act(s,{type:'resume'}),.25);
   assert.ok(resumed.motion.speed>0&&resumed.motion.speed<.15);
   assert.ok(N.distance(resumed.position,s.position)<1);
 });
 
-test('all ship tiers cruise at half the previous maximum without changing distance-based travel costs',()=>{
+test('wind keeps every ship within the halved maximum and preserves distance-based travel costs',()=>{
   for(let tier=0;tier<E.SHIPS.length;tier++) for(const mode of ['manual','auto']) {
     const s=openWater();s.ship=tier;s.motion.speed=1;s.navigation.mode=mode;
     const next=E.advance(s,1),distance=N.distance(s.position,next.position);
-    assert.ok(Math.abs(distance-31.5*.5*E.SHIPS[tier].speed)<1e-7,`${mode} tier ${tier+1} speed`);
-    assert.equal(next.motion.speed,1,'HUD still shows full cruise at the new maximum');
+    const maximum=31.5*.5*E.SHIPS[tier].speed;
+    assert.ok(distance<=maximum+1e-7&&distance>=maximum*.8,`${mode} tier ${tier+1} speed`);
+    assert.ok(Math.abs(next.motion.speed-E.windAt(next).factor)<.01,'Cruise follows wind without changing the speed scale');
     const quote=E.passage(s,s.navigation.points),arrived=run(next);
     assert.equal(arrived.gold,s.gold-quote.cost);
     assert.equal(arrived.day,s.day+quote.days);

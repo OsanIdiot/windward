@@ -3,6 +3,7 @@
   root.createVoyageUI = function ({ read, steer, navigate, toggle, notify }) {
     const E = root.Windward, N = E.N, C = root.VoyageCamera, $ = id => document.getElementById(id);
     const canvas = $('voyage-canvas'), ctx = canvas.getContext('2d');
+    const caption = canvas.parentElement.querySelector('.voyage-caption');
     const mini = $('voyage-minimap'), mc = mini.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const compact = matchMedia('(max-width: 740px)');
@@ -51,7 +52,8 @@
       for(let i=2;i<length;i+=2){const x=shore.x-nx*i,y=shore.y-ny*i;sc.strokeStyle='#7a795b';sc.beginPath();sc.moveTo(x-ny*1.5,y+nx*1.5);sc.lineTo(x+ny*1.5,y-nx*1.5);sc.stroke();}
     }
     let width = 0, height = 0, scale = 1, cx = 0, cy = 0, heading = 225, lastStamp = 0, portKey = '';
-    let trail = [], previous = null, press = null, lastHUD = 0, bank = 0;
+    let trail = [], previous = null, press = null, lastHUD = 0, bank = 0, animationTime = 0;
+    let captionRight = 0, captionBottom = 0;
     let headingUp = true;
     try { headingUp = localStorage.getItem('windward-camera') !== 'north'; } catch (_) {}
     const cameraBearing = () => headingUp ? heading : 0;
@@ -67,20 +69,24 @@
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       scale = Math.min(width, height) / 145;
       cx = width * .5; cy = height * .58;
+      captionRight = caption.offsetLeft + caption.offsetWidth;
+      captionBottom = caption.offsetTop + caption.offsetHeight;
     }
     function worldTransform(context, position, x = cx, y = cy, zoom = scale, bearing = cameraBearing()) {
       C.transform(context, position, { x, y, zoom, bearing });
     }
-    function water(bounds, time) {
+    function water(bounds, time, wind) {
       const { left, top, right, bottom } = bounds;
       // World-anchored, irregular wavelets do not slide around when the camera turns.
       const step = compact.matches ? 21 : 17;
       for(let gy=Math.floor(top/14)*14;gy<bottom+14;gy+=14)for(let gx=Math.floor(left/step)*step;gx<right+step;gx+=step){
         const n=noise(gx,gy), x=gx+n*step, y=gy+noise(gy,gx)*14;
-        const phase=time*.8+n*6.28, drift=Math.sin(phase)*1.1;
+        const phase=time*.8+n*6.28, drift=Math.sin(phase)*(.35+wind.strength);
+        ctx.save(); ctx.translate(x,y); ctx.rotate(wind.from*Math.PI/180); ctx.translate(-x,-y);
         ctx.strokeStyle=`rgba(209,233,216,${.06+.09*(.5+.5*Math.sin(phase))})`;ctx.lineWidth=.25+n*.18;
         ctx.beginPath();ctx.moveTo(x,y+drift);ctx.bezierCurveTo(x+1,y-.8+drift,x+3,y+.7+drift,x+3+n*4,y+drift);ctx.stroke();
         if(n>.77){ctx.strokeStyle=`rgba(246,239,199,${.09+.11*Math.max(0,Math.sin(phase+1))})`;ctx.lineWidth=.35;ctx.beginPath();ctx.moveTo(x+2,y+2);ctx.lineTo(x+4+n*2,y+2);ctx.stroke();}
+        ctx.restore();
       }
     }
     function harbor(state) {
@@ -111,7 +117,7 @@
         if(i%2===0){ctx.strokeStyle=`rgba(231,242,221,${strength*.35})`;ctx.lineWidth=.35;ctx.beginPath();ctx.moveTo(b.x-px*.8,b.y-py*.8);ctx.quadraticCurveTo(b.x-dx*.5,b.y-dy*.5,b.x+px*.8,b.y+py*.8);ctx.stroke();}
       }
     }
-    function ship(time, moving, tier, speed) {
+    function ship(time, moving, tier, speed, wind) {
       ctx.save(); ctx.translate(cx, cy); ctx.rotate((heading - cameraBearing()) * Math.PI / 180);
       const size = (width < 500 ? .8 : 1) * (1 + tier * .035); ctx.scale(size, size);
       ctx.fillStyle = '#123e493d'; ctx.beginPath(); ctx.ellipse(8, 9, 29, 55, 0, 0, Math.PI * 2); ctx.fill();
@@ -124,7 +130,7 @@
         }
       }
       ctx.save();
-      if (!reduced.matches) { ctx.translate(0, Math.sin(time * 1.5) * (1.1 + speed * .6)); ctx.rotate(Math.sin(time * 1.4) * (.018 + speed * .012) + bank * .035); }
+      if (!reduced.matches) { ctx.translate(0, Math.sin(time * 1.5) * (.5 + wind.strength + speed * .4)); ctx.rotate(Math.sin(time * 1.4) * (.01 + wind.strength * .015 + speed * .008) + bank * .035); }
       ctx.beginPath();ctx.moveTo(0,-53);ctx.bezierCurveTo(30,-24,27,32,13,48);ctx.lineTo(-13,48);ctx.bezierCurveTo(-27,32,-30,-24,0,-53);ctx.closePath();
       ctx.fillStyle='#81583c';ctx.strokeStyle='#e3c992';ctx.lineWidth=3;ctx.fill();ctx.stroke();
       ctx.beginPath();ctx.moveTo(0,-42);ctx.bezierCurveTo(20,-16,20,23,11,37);ctx.lineTo(-11,37);ctx.bezierCurveTo(-20,23,-20,-16,0,-42);ctx.fillStyle='#c4a674';ctx.fill();
@@ -133,7 +139,7 @@
       ctx.fillStyle='#70543b';ctx.fillRect(-11,27,22,14);ctx.fillStyle='#d6bb83';ctx.fillRect(-8,30,16,7);
       ctx.strokeStyle='#72533a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-56);ctx.lineTo(0,34);ctx.stroke();
       for(const [y,spread] of [[-19,29],[13,24]]) {
-        const billow = speed * 5 + (reduced.matches ? 0 : Math.sin(time * (2 + Math.abs(bank)*3) + y) * (1.2 + Math.abs(bank)*2));
+        const billow = speed * (3 + wind.strength * 3) + (reduced.matches ? 0 : Math.sin(time * 2 + y) * (.5 + wind.strength * 1.4 + Math.abs(bank)*2));
         ctx.beginPath();ctx.moveTo(-spread,y-5);ctx.quadraticCurveTo(0,y-20-billow,spread,y-5);ctx.lineTo(spread-4,y+16);ctx.quadraticCurveTo(0,y+25+billow,-spread+4,y+16);ctx.closePath();
         const cloth = ctx.createLinearGradient(-spread, y-20, spread, y+22);
         cloth.addColorStop(0, '#d6c9a5'); cloth.addColorStop(.42, '#fff8de'); cloth.addColorStop(.7, '#f3e7c6'); cloth.addColorStop(1, '#b7a37b');
@@ -158,6 +164,7 @@
     }
     function renderPorts(state) {
       const visible=E.PORTS.map(p=>({p,...C.project(p,state.position,cameraView())})).filter(v=>v.x>50&&v.x<width-50&&v.y>115&&v.y<height-110)
+        .filter(v=>!(v.x<captionRight+40&&v.y<captionBottom+65))
         .filter(v=>!(v.x>width-135&&v.y<205));
       const key=visible.map(v=>v.p.id+state.visited.includes(v.p.id)).join(',');
       if(key!==portKey){
@@ -167,15 +174,19 @@
       for(const {p,x,y} of visible){const b=$('voyage-ports').querySelector(`[data-voyage-port="${p.id}"]`);b.style.left=x+'px';b.style.top=(y-38)+'px';}
       return visible;
     }
-    function renderHUD(state, visible) {
+    function renderHUD(state, visible, wind) {
       const nav=state.navigation, near=E.nearbyPort(state), coordinate=N.unproject(state.position);
       const degree=(Math.round(heading)%360+360)%360;
       const directions=['북','북동','동','남동','남','남서','서','북서'];
+      const windName=directions[Math.round(wind.from/45)%8];
+      text('voyage-wind-label',`${windName}풍 · ${Math.round(wind.knots)} kn`);
+      text('voyage-wind-effect',`${wind.kind} · 순항 목표 ${Math.round(wind.factor*100)}%`);
+      $('voyage-wind').setAttribute('aria-label',`${windName}쪽에서 불어오는 바람, 풍속 ${Math.round(wind.knots)}노트. ${wind.kind}, 순항 목표 ${Math.round(wind.factor*100)}퍼센트. 화살표는 바람이 흐르는 방향입니다.`);
       text('voyage-bearing',`${directions[Math.round(degree/45)%8]} · ${degree}°`);
       text('voyage-position',`${Math.abs(coordinate.lat).toFixed(2)}° N · ${Math.abs(coordinate.lon).toFixed(2)}° ${coordinate.lon>=0?'E':'W'}`);
       text('voyage-motion',nav?.stopping?'돛을 내리고 감속 중':nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
       const speed = nav?.running ? state.motion?.speed ?? 1 : 0;
-      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${Math.round(speed*100)}% · ${speed===0?'정지':state.motion?.braking?'감속 중':state.motion?.turning?'선회 중':speed<.95?'가속 중':'순항'}`);
+      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${Math.round(speed*100)}% · ${speed===0?'정지':state.motion?.braking?'감속 중':state.motion?.turning?'선회 중':speed<wind.factor-.03?'가속 중':speed>wind.factor+.03?'바람에 맞춰 감속':'순항'}`);
       text('voyage-mood',near?`${E.portLabel(state,near.id)} 앞바다`:visible.length?'수평선 너머, 항구의 모습':'바람을 따라, 더 먼 바다로');
       text('voyage-status',nav?.stopping?'서서히 속도를 줄이고 있습니다. 계속을 누르거나 바다를 눌러 다시 출발하세요.':nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
       $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&(!nav.running||nav.stopping)?'계속':'정지');
@@ -192,6 +203,8 @@
       else if(target){const wanted=(Math.atan2(target.x-state.position.x,state.position.y-target.y)*180/Math.PI+360)%360;const difference=(wanted-heading+540)%360-180;heading=(heading+difference*Math.min(1,dt*8)+360)%360;}
       const turn=dt>0?Math.max(-1,Math.min(1,((heading-oldHeading+540)%360-180)/(dt*95))):0;
       bank += (turn-bank)*Math.min(1,dt*4);
+      const wind=E.windAt(state,heading);
+      $('voyage-wind-arrow').style.transform=`rotate(${wind.from+180-cameraBearing()}deg)`;
       // The compass points to world north, not the ship's bow. No CSS interpolation across 0/360.
       $('voyage-needle').style.transform=`rotate(${-cameraBearing()}deg)`;
       $('voyage-north').style.transform=`translate(-50%,-50%) rotate(${-cameraBearing()}deg) translateY(var(--north-offset)) rotate(${cameraBearing()}deg)`;
@@ -202,14 +215,16 @@
         trail.push({x:state.position.x-Math.sin(angle)*stern,y:state.position.y+Math.cos(angle)*stern,at:stamp,speed:state.motion?.speed??0});previous={...state.position};
       }
       trail=trail.filter(p=>stamp-p.at<8000).slice(-140);
-      const time=reduced.matches?0:stamp/1000;
+      // Integrate phase so changing wind cannot amplify hours of elapsed page time.
+      if (!reduced.matches) animationTime += dt * (.45 + wind.strength * .75);
+      const time=reduced.matches?0:animationTime;
       const gradient=ctx.createLinearGradient(0,0,width*.6,height);gradient.addColorStop(0,'#326b78');gradient.addColorStop(.5,'#397f83');gradient.addColorStop(1,'#285c6a');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
       const light=ctx.createRadialGradient(width*.22,height*.16,0,width*.22,height*.16,width*.8);
       light.addColorStop(0,'#c8dfb32a');light.addColorStop(1,'#b7d9bc00');ctx.fillStyle=light;ctx.fillRect(0,0,width,height);
       ctx.save();worldTransform(ctx,state.position);
       ctx.lineWidth=.45;ctx.strokeStyle='#eef5d83b';
       const {left,top,right,bottom}=C.bounds(state.position,cameraView(),width,height);
-      water({left,top,right,bottom},time);
+      water({left,top,right,bottom},time,wind);
       ctx.fillStyle='#dcd8b8';ctx.fill(land,'evenodd');
       ctx.drawImage(scenery,0,0,N.G.width,N.G.height);
       harbor(state);
@@ -220,6 +235,7 @@
       for (const site of E.seaSightings(state)) {
         const { x, y } = C.project(site, state.position, cameraView());
         if (x < 22 || x > width - 22 || y < 100 || y > height - 75) continue;
+        if (x < captionRight + 25 && y < captionBottom + 40) continue;
         const found = state.seaDiscoveries.includes(site.id), known = state.seaClues.includes(site.id);
         ctx.save(); ctx.translate(x, y);
         ctx.strokeStyle = '#e2eee0aa'; ctx.lineWidth = 1;
@@ -254,8 +270,8 @@
         ctx.fillStyle = '#f2eedb'; ctx.fillText(caption, -23, -18);
         ctx.restore();
       }
-      ship(time,moving,state.ship,state.motion?.speed??1);
-      if(stamp-lastHUD>100||!dt){renderHUD(state,visible);renderMini(state);lastHUD=stamp;}
+      ship(time,moving,state.ship,state.motion?.speed??1,wind);
+      if(stamp-lastHUD>100||!dt){renderHUD(state,visible,wind);renderMini(state);lastHUD=stamp;}
     }
     canvas.addEventListener('pointerdown',event=>{if(event.button===0)press={id:event.pointerId,x:event.clientX,y:event.clientY};});
     canvas.addEventListener('pointercancel',()=>{press=null;});
@@ -289,6 +305,6 @@
       if(E.nearbyPort(state)?.id===id&&!state.navigation?.running){notify('아래 입항 버튼으로 항구에 들어갈 수 있습니다.');return;}
       navigate(state.visited.includes(id)?{mode:'auto',destination:id}:{mode:'manual',point:{x:p.x,y:p.y}});
     });
-    return {render,reset:()=>{trail=[];previous=null;heading=225;bank=0;lastStamp=0;render();}};
+    return {render,reset:()=>{trail=[];previous=null;heading=225;bank=0;animationTime=0;lastStamp=0;render();}};
   };
 })(window);

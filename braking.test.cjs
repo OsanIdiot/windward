@@ -95,7 +95,7 @@ test('coast collision and lifecycle safety stops remain immediate', () => {
   assert.deepEqual(E.advance(paused, 1).position, moving.position);
   let s = E.act(moving, { type: 'steer', heading: 90 }), before;
   for (let i = 0; s.navigation?.running && i < 500; i++) { before = s; s = E.advance(s, .1); }
-  assert.ok(before.motion.speed > .9, 'The coast is an abrupt safety stop, not destination braking');
+  assert.ok(before.motion.speed > .79 && !before.motion.braking, 'The coast is an abrupt stop from wind-limited cruise, not destination braking');
   assert.equal(s.motion.speed, 0); assert.ok(N.isSea(s.position)); assert.ok(N.clear(before.position, s.position));
   const bad = cruise(); bad.navigation.points = [N.project(-3.7, 40.4)]; bad.navigation.hardEnd = true;
   const collision = stop(bad);

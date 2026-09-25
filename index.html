@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f3eee3">
-  <meta name="application-version" content="0.1.6">
+  <meta name="application-version" content="0.1.7">
   <meta name="description" content="교역으로 꿈을 키우고 탐험으로 이야기를 발견하는 평화로운 모바일 웹 항해 게임.">
   <title>바람의 항로 · Windward</title>
   <script>if (['port', 'sea'].includes(new URLSearchParams(location.search).get('screen'))) document.documentElement.classList.add('page-boot');</script>
-  <link rel="stylesheet" href="style.css?v=0.1.5">
+  <link rel="stylesheet" href="style.css?v=0.1.7">
   <script src="geography.js" defer></script>
   <script src="navigation.js?v=11" defer></script>
-  <script src="engine.js?v=0.1.2" defer></script>
+  <script src="engine.js?v=0.1.7" defer></script>
   <script src="sea-ui.js?v=0.1.3" defer></script>
   <script src="voyage-camera.js?v=32" defer></script>
-  <script src="voyage-ui.js?v=0.1.6" defer></script>
+  <script src="voyage-ui.js?v=0.1.7" defer></script>
   <script src="audio-config.js?v=0.1.5" defer></script>
   <script src="audio.js?v=0.1.5" defer></script>
   <script src="play-session.js?v=33" defer></script>
@@ -61,7 +61,7 @@
       </section>
     </div>
     <p id="session-notice" class="market-tip" role="status" hidden></p>
-    <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험 · v0.1.6</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
+    <div class="entry-bottom"><span>나만의 항로를 기록하는 작은 모험 · v0.1.7</span><button id="reset-button" class="text-button">새 항해 시작</button></div>
   </section>
   <section id="game-screen" aria-label="게임 화면" tabindex="-1" hidden>
     <nav class="play-controls" aria-label="게임 메뉴"><span id="play-mode-label"></span><button type="button" class="text-button" data-sound aria-pressed="true" aria-label="항해 소리 끄기">소리 켜짐</button><button type="button" class="text-button" data-support aria-label="후원하기 (새 탭)">후원하기</button><button class="text-button" data-help>항해 안내</button><button class="text-button" id="return-menu-button">입장 화면</button></nav>
@@ -74,6 +74,7 @@
     <div class="game-layout">
       <section id="voyage-screen" aria-label="바다 항해 화면" hidden>
         <div class="section-heading"><h2 id="voyage-heading" tabindex="-1"><svg class="icon"><use href="#i-ship"/></svg> 바다 위의 제비호</h2><button id="open-chart-button" class="secondary">해도 열기 <svg class="icon"><use href="#i-compass"/></svg></button></div>
+        <div class="voyage-wind" id="voyage-wind"><span class="wind-arrow" id="voyage-wind-arrow" aria-hidden="true">↑</span><div><strong id="voyage-wind-label"></strong><small id="voyage-wind-effect"></small></div></div>
         <div class="voyage-stage" id="voyage-stage">
           <canvas id="voyage-canvas" tabindex="0" role="application" aria-label="바다 조타. 배 주변 클릭·터치와 방향키는 화면 기준 방향, 스페이스는 정지 또는 계속입니다."></canvas>
           <div class="voyage-caption"><p class="eyebrow">UNDER SAIL / 1550</p><h3 id="voyage-mood">바다가 부르는 곳으로</h3><span id="voyage-position"></span></div>
@@ -85,7 +86,7 @@
         </div>
         <div class="voyage-controls"><div><p id="voyage-status" role="status">바다를 눌러 방향을 정하세요.</p><p class="hint">클릭·터치한 방향으로 계속 항해 · 해안 앞 자동 정지 · 경로 지정은 해도에서</p></div><button id="voyage-pause" class="secondary" disabled>정지</button></div>
         <div id="voyage-arrival" class="arrival-panel" aria-live="polite"></div>
-        <details class="helm-help"><summary>조타와 소리 안내</summary><p>기본은 선수 고정 시점입니다. 배의 뱃머리는 화면 위를 향하고 선회하면 지도가 반대로 회전합니다. '시점' 버튼으로 기존 북쪽 고정 화면과 비교할 수 있습니다. 클릭·터치와 방향키는 화면 기준으로 조타하며, 스페이스로 정지·계속합니다. 나침반 바늘과 N 표시는 실제 북쪽, 아래 숫자는 배의 선수 방향입니다. 미니맵과 해도는 항상 북쪽이 위입니다. 가까운 항구 표지를 누르면 접근하며 미확인 항구는 육지를 가로질러 갈 수 없습니다.</p><p>출발할 때 서서히 가속하며 크게 선회하면 감속하고, 직선에서 다시 속도가 붙습니다. 속도 %는 현재 선박의 최고 속도를 기준으로 합니다. 경비는 이동 거리에 따라 계산되며 정지 버튼은 앞으로 조금 흐르며 서서히 멈춥니다.</p><p>상단 '소리 켜짐/꺼짐'으로 은은한 물살·바람·갈매기·선박·입항 알림음을 조절합니다. '소리 대기'라면 화면을 터치해 주세요. 음량은 기기의 미디어 음량으로 조절하며, 다른 탭이나 입장 화면으로 이동하면 소리가 멈춥니다.</p></details>
+        <details class="helm-help"><summary>조타와 소리 안내</summary><p>기본은 선수 고정 시점입니다. 배의 뱃머리는 화면 위를 향하고 선회하면 지도가 반대로 회전합니다. '시점' 버튼으로 기존 북쪽 고정 화면과 비교할 수 있습니다. 클릭·터치와 방향키는 화면 기준으로 조타하며, 스페이스로 정지·계속합니다. 나침반 바늘과 N 표시는 실제 북쪽, 아래 숫자는 배의 선수 방향입니다. 미니맵과 해도는 항상 북쪽이 위입니다. 가까운 항구 표지를 누르면 접근하며 미확인 항구는 육지를 가로질러 갈 수 없습니다.</p><p>출발할 때 서서히 가속하며 크게 선회하면 감속하고, 직선에서 다시 속도가 붙습니다. 속도 %는 현재 선박의 최고 속도를 기준으로 합니다. 경비는 이동 거리에 따라 계산되며 정지 버튼은 앞으로 조금 흐르며 서서히 멈춥니다.</p><p>풍향은 바람이 불어오는 쪽이며 작은 화살표는 화면에서 바람이 흐르는 쪽입니다. 풍속은 노트(kn)로 표시합니다. 게임 속 날짜·해역에 따라 바람이 서서히 달라지며, 순풍·옆바람·맞바람에 따른 순항 속도는 최고속도의 80~100% 범위입니다. 맞바람에도 이동할 수 있고 자동항해에도 같은 바람이 적용됩니다. 표시된 순항 목표와 실제 속도는 가속·선회·감속 중에 다를 수 있습니다.</p><p>상단 '소리 켜짐/꺼짐'으로 은은한 물살·바람·갈매기·선박·입항 알림음을 조절합니다. '소리 대기'라면 화면을 터치해 주세요. 음량은 기기의 미디어 음량으로 조절하며, 다른 탭이나 입장 화면으로 이동하면 소리가 멈춥니다.</p></details>
       </section>
       <section class="chart-section" id="chart-screen" aria-label="항해 지도" hidden>
         <div class="section-heading"><h2 id="chart-heading" tabindex="-1"><svg class="icon"><use href="#i-compass"/></svg> 항해도</h2><button id="return-sea-button" class="secondary">배로 돌아가기 <svg class="icon"><use href="#i-ship"/></svg></button></div>

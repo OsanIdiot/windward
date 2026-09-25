@@ -55,6 +55,17 @@
   const adventureDefaults = () => ({ discoveries: [], seaClues: [], seaDiscoveries: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
   const bearing = (a, b) => (Math.atan2(b.x - a.x, a.y - b.y) * 180 / Math.PI + 360) % 360;
   const angleDelta = (from, to) => (to - from + 540) % 360 - 180;
+  function windAt(state, heading = state.motion?.heading ?? 225) {
+    // Fictional, continuous weather from saved voyage progress; no wall clock or new save fields.
+    const time = (state.day + state.seaProgress) / 12;
+    const phase = time + state.position.x / 350 + state.position.y / 500;
+    const from = (300 + 65 * Math.sin(phase) + 25 * Math.sin(time * .43) + 360) % 360;
+    const strength = .2 + .8 * (.5 + .5 * Math.sin(phase * .73 + 1.2));
+    const alignment = Math.cos(angleDelta(heading, from) * Math.PI / 180);
+    return { from, strength, knots: 4 + strength * 10,
+      factor: .9 - .1 * strength * alignment,
+      kind: alignment > .5 ? '맞바람' : alignment < -.5 ? '순풍' : '옆바람' };
+  }
   const BRAKE = .45;
   const motionDefaults = state => ({ speed: 0, heading: state?.navigation?.points[0] ? bearing(state.position, state.navigation.points[0]) : 225, turning: false, braking: false });
   function stopMotion(state) {
@@ -146,6 +157,7 @@
       const bend = nextPoint ? Math.min(1, Math.abs(angleDelta(direction, bearing(target, nextPoint))) / 110) : 0;
       const approach = Math.max(0, 1 - distance / (cruise * .85 + 4));
       desired = Math.min(desired, 1 - .72 * bend * approach);
+      desired *= windAt(state, motion.heading).factor;
       const distanceLeft = N.length(state.position, nav.points);
       const landing = !nav.hardEnd || !!nav.arrivalPort;
       // v^2 = 2ad: brake along the remaining safe route, including its corners.
@@ -378,7 +390,7 @@
     next.motion = { ...(next.motion || motionDefaults(next)), speed: 0, turning: false, braking: false };
     return JSON.parse(JSON.stringify(next));
   }
-  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SIGHT_RANGE, SURVEY_RANGE, seaSightings, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
+  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SIGHT_RANGE, SURVEY_RANGE, seaSightings, windAt, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Windward = api;
 })(typeof window !== 'undefined' ? window : globalThis);
