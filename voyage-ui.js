@@ -80,7 +80,7 @@
       text('voyage-mood',near?`${E.portLabel(state,near.id)} 앞바다`:visible.length?'수평선 너머, 항구의 모습':'바람을 따라, 더 먼 바다로');
       text('voyage-status',nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
       $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&!nav.running?'계속':'정지');
-      const html=near&&!nav?.running?`<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,near.id)} · 입항 가능</h3><p>처음 입항하면 항구 이름과 자동항해가 열립니다.</p></div><button class="primary" id="voyage-enter-port">입항 →</button>`:`<div><p class="eyebrow">THE OPEN WATER</p><p>미확인 항구는 가까이 접근한 뒤 입항하세요.</p></div>${!state.port?'<button class="text-button" id="voyage-rescue">귀환 지원 · 3일 / 최대 40 G</button>':''}`;
+      const html=near&&!nav?.running?`<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,near.id)} · 입항 가능</h3><p>처음 입항하면 항구 이름과 자동항해가 열립니다.</p></div><button class="primary" id="voyage-enter-port">입항 →</button>`:`<div><p class="eyebrow">THE OPEN WATER</p><p>미확인 항구는 가까이 접근한 뒤 입항하세요.</p></div>${!state.port?'<button class="secondary rescue-button" id="voyage-rescue"><span>귀환 지원</span><small>3일 / 최대 40 G</small></button>':''}`;
       if($('voyage-arrival').innerHTML!==html)$('voyage-arrival').innerHTML=html;
     }
     function render(stamp = performance.now()) {

@@ -41,7 +41,7 @@
       const nearby=E.nearbyPort(state);
       const arrivalHTML=nearby&&!nav?.running
         ? `<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,nearby.id)} · 입항 가능</h3><p>입항하면 교역소와 항구의 여러 시설을 이용할 수 있습니다.</p></div><button class="primary" id="enter-port-button">입항 <span aria-hidden="true">→</span></button>`
-        : `<div><p class="eyebrow">ON THE OPEN SEA</p><p>항구 가까이 접근한 뒤 입항 버튼을 눌러 주세요.</p></div>${!here?'<button class="text-button" id="rescue-button">귀환 지원 · 3일 / 최대 40 G</button>':''}`;
+        : `<div><p class="eyebrow">ON THE OPEN SEA</p><p>항구 가까이 접근한 뒤 입항 버튼을 눌러 주세요.</p></div>${!here?'<button class="secondary rescue-button" id="rescue-button"><span>귀환 지원</span><small>3일 / 최대 40 G</small></button>':''}`;
       if($('arrival-panel').innerHTML!==arrivalHTML)$('arrival-panel').innerHTML=arrivalHTML;
       const key=state.visited.join(',')+'|'+state.port+'|'+(nav?.targetPort||'');
       if(key!==markerKey) {
