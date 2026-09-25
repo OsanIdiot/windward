@@ -255,10 +255,10 @@
     if (tab === 'ship') renderShip();
     if (tab === 'adventure') {
       renderAdventure();
-      $('dock-content').insertAdjacentHTML('afterbegin', `<p><button class="secondary" data-sea-atlas aria-haspopup="dialog" aria-controls="sea-atlas-dialog">해상 발견 도감 · ${state.seaDiscoveries.length}/${E.SEA_SITES.length}</button></p>`);
+      $('dock-content').insertAdjacentHTML('afterbegin', `${seaDiscoveriesUI?.rumors({ port: state.port }) || ''}<p><button class="secondary" data-sea-atlas aria-haspopup="dialog" aria-controls="sea-atlas-dialog">해상 발견 도감 · ${state.seaDiscoveries.length}/${E.SEA_SITES.length}</button></p>`);
     }
     if (tab === 'contracts') renderContracts();
-    if (tab === 'log') $('dock-content').innerHTML = `<p class="hint">${state.day}일의 여정 · ${state.voyages}번의 항해<br>가장 최근 기록부터 표시됩니다.</p><ol class="log-list">${state.log.map(line => `<li>${escape(line)}</li>`).join('')}</ol>`;
+    if (tab === 'log') $('dock-content').innerHTML = `<h3>소문과 항해 이야기</h3>${seaDiscoveriesUI?.rumors() || ''}<p class="hint">${state.day}일의 여정 · ${state.voyages}번의 항해<br>가장 최근 기록부터 표시됩니다.</p><ol class="log-list">${state.log.map(line => `<li>${escape(line)}</li>`).join('')}</ol>`;
     for (const p of E.PORTS) if (!state.visited.includes(p.id)) $('dock-content').innerHTML = $('dock-content').innerHTML.split(p.name).join('미확인 항구');
   }
   function renderStats() {

@@ -42,6 +42,25 @@
     { id: 'cargo', name: '바다가 돌려준 도기', clue: '밧줄에 엉킨 작은 부유물', kind: '표류물 조사', sea: [17.3, 41.9], reward: 130, fame: 8, story: '낡은 그물에 싸인 도기 조각을 건져 올렸습니다. 바닥의 상인 표식을 베껴 항해 도감에 남겼습니다.' }
   ].map(s => ({ ...s, ...N.nearestSea(N.project(...s.sea)) }));
   const SIGHT_RANGE = 75, SURVEY_RANGE = 7;
+  const SEA_RUMORS = [
+    { id: 'seabirds', port: 'lume', site: 'seabirds', requires: [], title: '새들이 가리킨 물길', speaker: '벨렝의 늙은 뱃사공', fame: 3,
+      invitation: '뱃사공이 남서쪽 바다를 바라보다 당신에게 손짓합니다.',
+      hint: '리스본에서 남서쪽 앞바다로 나가 보게. 새들이 유난히 낮게 모이는 곳이 있어. 해안을 뒤로하고 망원경으로 둘러보면 알아볼 걸세.',
+      ending: '새 떼와 물고기를 그린 항해일지를 펼치자 뱃사공이 웃었습니다. "바다는 금화 말고도 남길 것이 많지." 당신의 관찰은 부두 선원들이 함께 읽는 기록이 되었습니다.' },
+    { id: 'wreck', port: 'cedar', site: 'wreck', requires: ['seabirds'], title: '물결에 남은 한 페이지', speaker: '부두의 기록 수집가', fame: 5,
+      invitation: '새 떼를 관찰한 선장이라는 말을 들었다며, 기록 수집가가 작은 부탁을 건넵니다.',
+      hint: '이 항구에서 서쪽 바깥바다로 가 보세요. 물결 사이로 부서진 돛대가 보인다는군요. 망원경으로 흔적을 찾고, 가까이에서 멈춘 뒤 남은 기록이 있는지 살펴봐 주세요.',
+      ending: '건져 올린 별자리 스케치를 기록 수집가에게 보여 주었습니다. 이름 없는 선원의 한 페이지가 새들의 물길을 그린 당신의 기록 옆에 놓였습니다. 서로 다른 항구의 작은 이야기가 하나의 항해일지로 이어졌습니다.',
+      lead: '리스본 남동쪽 해안을 따라, 지브롤터 서편에 있는 항구의 탐험 메뉴에서 기록 수집가를 만나세요.' }
+  ];
+  function rumorStage(state, id) {
+    const rumor = SEA_RUMORS.find(r => r.id === id);
+    if (!rumor || !rumor.requires.every(required => (state.seaStories || []).includes(required))) return 'locked';
+    if ((state.seaStories || []).includes(id)) return 'complete';
+    if (!(state.seaRumors || []).includes(id)) return 'offered';
+    if ((state.seaDiscoveries || []).includes(rumor.site)) return 'report';
+    return (state.seaClues || []).includes(rumor.site) ? 'investigate' : 'search';
+  }
   const seaSightings = state => state.screen === 'chart' ? SEA_SITES.filter(s => N.distance(state.position, s) <= SIGHT_RANGE && N.clear(state.position, s)) : [];
   const CONTRACTS = [
     { id: 'bread', from: 'lume', to: 'cedar', name: '항구의 제빵사를 위해', good: 'grain', qty: 8, reward: 260, fame: 8, story: '카디스의 제빵사가 새로 문을 엽니다. 밀을 구해 전해주세요.' },
@@ -52,7 +71,7 @@
   ];
   // Legacy IDs and storage key preserve existing voyages as geography changes.
   const KEY = 'windward-v1';
-  const adventureDefaults = () => ({ discoveries: [], seaClues: [], seaDiscoveries: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
+  const adventureDefaults = () => ({ discoveries: [], seaClues: [], seaDiscoveries: [], seaRumors: [], seaStories: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
   const bearing = (a, b) => (Math.atan2(b.x - a.x, a.y - b.y) * 180 / Math.PI + 360) % 360;
   const angleDelta = (from, to) => (to - from + 540) % 360 - 180;
   function windAt(state, heading = state.motion?.heading ?? 225) {
@@ -205,6 +224,7 @@
     const state = JSON.parse(JSON.stringify(input));
     state.motion ||= motionDefaults(state);
     state.seaClues ??= []; state.seaDiscoveries ??= [];
+    state.seaRumors ??= []; state.seaStories ??= [];
     if (action.type === 'lookout') {
       if (state.screen !== 'chart') throw Error('바다에 나가 망원경을 펼쳐 주세요.');
       const found = seaSightings(state).filter(s => !state.seaClues.includes(s.id));
@@ -269,6 +289,21 @@
       return finish(state, `${port.name} 앞바다로 복귀했습니다. 3일 · ${fee} G. 입항 버튼을 눌러 주세요.`);
     }
     if (!state.port || state.screen !== 'port') throw Error('교역·탐험·의뢰는 항구 화면에서 이용할 수 있습니다. 입항 버튼을 눌러 주세요.');
+    if (action.type === 'hear-rumor' || action.type === 'report-rumor') {
+      const rumor = SEA_RUMORS.find(r => r.id === action.rumor);
+      if (!rumor || rumor.port !== state.port) throw Error('소문을 전하는 사람이 있는 항구에 먼저 입항해 주세요.');
+      const stage = rumorStage(state, rumor.id);
+      if (stage === 'locked') throw Error('앞선 항구의 이야기를 먼저 마무리해 주세요.');
+      if (action.type === 'hear-rumor') {
+        if (stage !== 'offered') throw Error('이미 항해일지에 기록한 소문입니다.');
+        state.seaRumors.push(rumor.id);
+        return finish(state, `소문 기록: ${rumor.title}. ${state.seaDiscoveries.includes(rumor.site) ? '이미 조사한 기록을 이 항구에서 전달할 수 있습니다.' : '방향 단서를 발견 도감에 남겼습니다.'}`);
+      }
+      if (stage === 'complete') throw Error('이미 이야기를 전달하고 보상받았습니다.');
+      if (stage !== 'report') throw Error('소문을 듣고 바다의 흔적을 조사한 뒤 돌아와 주세요.');
+      state.seaStories.push(rumor.id); state.reputation += rumor.fame;
+      return finish(state, `이야기 완결: ${rumor.title}. 항해 기록 전달 · 명성 +${rumor.fame}.`);
+    }
     if (action.type === 'explore') {
       const site = SITES.find(s => s.id === action.site);
       if (!site || site.port !== state.port) throw Error('탐험 지역의 항구에 먼저 도착해 주세요.');
@@ -373,6 +408,14 @@
     const ids = (array, known) => Array.isArray(array) && new Set(array).size === array.length && array.every(id => known.some(item => item.id === id));
     return (s.seaClues === undefined || ids(s.seaClues, SEA_SITES))
       && (s.seaDiscoveries === undefined || (ids(s.seaDiscoveries, SEA_SITES) && s.seaDiscoveries.every(id => (s.seaClues || []).includes(id))))
+      && (s.seaRumors === undefined || (ids(s.seaRumors, SEA_RUMORS) && s.seaRumors.every(id => {
+        const rumor = SEA_RUMORS.find(r => r.id === id);
+        return s.visited.includes(rumor.port) && rumor.requires.every(required => (s.seaStories || []).includes(required));
+      })))
+      && (s.seaStories === undefined || (ids(s.seaStories, SEA_RUMORS) && s.seaStories.every(id => {
+        const rumor = SEA_RUMORS.find(r => r.id === id);
+        return (s.seaRumors || []).includes(id) && (s.seaDiscoveries || []).includes(rumor.site);
+      })))
       && ids(s.discoveries, SITES) && ids(s.contractsDone, CONTRACTS)
       && s.discoveries.every(id => { const site = SITES.find(item => item.id === id); return s.visited.includes(site.port) && site.requires.every(required => s.discoveries.includes(required)); })
       && (s.activeContract === null || CONTRACTS.some(c => c.id === s.activeContract && !s.contractsDone.includes(c.id)))
@@ -386,11 +429,12 @@
     if (next.navigation) next.navigation = { ...next.navigation, running: false };
     if (!valid(next)) return null;
     next.seaClues ??= []; next.seaDiscoveries ??= [];
+    next.seaRumors ??= []; next.seaStories ??= [];
     if (next.navigation) next.navigation.stopping = false;
     next.motion = { ...(next.motion || motionDefaults(next)), speed: 0, turning: false, braking: false };
     return JSON.parse(JSON.stringify(next));
   }
-  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SIGHT_RANGE, SURVEY_RANGE, seaSightings, windAt, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
+  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SEA_RUMORS, rumorStage, SIGHT_RANGE, SURVEY_RANGE, seaSightings, windAt, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Windward = api;
 })(typeof window !== 'undefined' ? window : globalThis);
