@@ -5,10 +5,6 @@
   const saveKey = testMode ? `${E.KEY}-test` : E.KEY;
   const saveLabel = testMode ? '테스트 기록 별도 저장' : '이 브라우저에 자동 저장';
   const $ = id => document.getElementById(id);
-  const compactLayout = matchMedia('(max-width: 900px)');
-  const fitChartDetails = () => { $('chart-details').open = !compactLayout.matches; };
-  compactLayout.addEventListener('change', fitChartDetails);
-  fitChartDetails();
   const number = value => value.toLocaleString('ko-KR');
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -208,8 +204,8 @@
   function updateChartPeek(stamp) {
     if (!chartReturnAt) return;
     if (!playing || document.hidden || state.screen !== 'chart' || seaView !== 'map' || !state.navigation?.running) { cancelChartPeek(); return; }
-    // Let map gestures, dialogs and expanded mobile details finish before returning.
-    if (chartPointers.size || document.querySelector('dialog[open]') || (compactLayout.matches && $('chart-details').open)) chartReturnAt = stamp + 3000;
+    // Let map gestures and dialogs finish before returning.
+    if (chartPointers.size || document.querySelector('dialog[open]')) chartReturnAt = stamp + 3000;
     const remaining = Math.max(0, Math.ceil((chartReturnAt - stamp) / 1000));
     $('chart-peek-note').hidden = false;
     const note = `항해 중 · ${remaining}초 뒤 배로 복귀 · 정지하면 해도 유지`;

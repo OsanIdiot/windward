@@ -127,8 +127,7 @@
 .test-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 18px;margin-top:20px;background:#eee3ca;border:1px solid #c8b28c;border-radius:3px;font-size:11px;line-height:1.8}.test-banner strong{color:#885436}.test-banner span{flex:1;min-width:180px}.test-banner a{min-height:44px;display:inline-flex;align-items:center;color:var(--teal)}
 .test-tools{margin-top:24px;padding:18px;background:#eee3ca;border:1px solid #c8b28c;border-radius:3px}.test-tools h3{font:20px var(--serif);margin:0 0 10px}.test-tools p:not(.eyebrow){font-size:11px;line-height:1.8}.test-tools>div{display:flex;flex-wrap:wrap;gap:9px}.test-tools button{flex:1;min-width:120px}
 .ship-roster{border-top:1px solid var(--line);margin-top:24px;padding-top:14px}.ship-roster summary{cursor:pointer;min-height:44px;font-size:12px}.ship-roster ol{padding:0;list-style:none}.ship-roster li{padding:12px;border-bottom:1px solid var(--line)}.ship-roster li.current{background:#e3e9d9}.ship-roster strong{display:block;font-size:12px}.ship-roster span{display:block;margin-top:6px;font-size:11px;color:var(--muted)}.upgrade-box h3 small{font:11px var(--sans);color:var(--muted)}
-.chart-details>summary{cursor:pointer;min-height:44px;line-height:44px;font-size:11px;color:var(--muted)}
-.chart-details .route-panel{margin-top:12px}
+#chart-screen>.route-panel{margin-top:6px}
 .dock{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:48px;border:0;padding:0}
 .port-story,.port-services{min-width:0}
 .dock-heading h2{font-size:38px}
@@ -179,7 +178,7 @@
   .arrival-panel .primary{min-width:70px;min-height:44px;padding:8px 10px}
   .arrival-panel .text-button{min-height:44px;font-size:9px;max-width:112px}
   .helm-help{margin-top:0}
-  .helm-help summary,.chart-details>summary{min-height:44px;line-height:44px}
+  .helm-help summary{min-height:44px;line-height:44px}
   .harbor-town{height:calc(100svh - 190px - env(safe-area-inset-bottom));min-height:360px;max-height:none}
   .harbor-heading{top:12px;left:12px;padding:8px 12px;max-width:calc(100% - 24px)}
   .harbor-heading .eyebrow{display:none}
@@ -188,7 +187,7 @@
   .harbor-caption{padding:8px 0;display:block}
   .harbor-caption p{font-size:10px;line-height:1.5}
   .harbor-caption>span{display:block;margin-top:4px;font-size:8px}
-  .chart #sea-map{height:calc(100svh - 488px - env(safe-area-inset-bottom));min-height:180px}
+  .chart #sea-map{height:calc(100svh - 548px - env(safe-area-inset-bottom));min-height:180px}
   .navigation-toolbar{padding-top:6px;gap:6px;display:grid;grid-template-columns:1fr auto}
   #goals-button{justify-self:start;grid-column:1;grid-row:1}
   .navigation-toolbar button{min-height:44px}
@@ -197,7 +196,9 @@
   .port-selector{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px 0}
   .port-chip{min-width:0;min-height:48px;font-size:11px}
   .port-chip small{font-size:8px}
-  .chart-details{border-top:1px solid var(--line)}
+  #chart-screen>.route-panel{min-height:0;padding:10px 12px}
+  #chart-screen>.route-panel h3{font-size:14px;line-height:1.5;margin-bottom:5px}
+  #chart-screen>.route-panel p{font-size:11px;line-height:1.6}
   #chart-peek-note{margin:0 0 4px;font-size:10px}
   .place-button small{white-space:nowrap}
   #dock #harbor-button{min-width:105px;padding:9px 11px}

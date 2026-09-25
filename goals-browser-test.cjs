@@ -48,7 +48,7 @@ const E = require('./engine.js');
       assert.equal(await page.locator('#chart-screen').isVisible(),true,'Goals prevent automatic screen return');
       assert.equal((await saved()).navigation.running,true,'Voyage continues while reading goals');
       await click('[data-close="goals-dialog"]');
-      // Desktop details stay expanded but must not hold the chart open.
+      // The always-visible route notice must not hold the chart open.
       await page.waitForFunction(() => !document.getElementById('voyage-screen').hidden, null, {timeout:4000});
       await click('#open-chart-button'); await click('#chart-world');
       await page.locator('#sea-map').scrollIntoViewIfNeeded();
