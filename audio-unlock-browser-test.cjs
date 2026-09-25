@@ -45,6 +45,11 @@ const assert = require('node:assert/strict');
       const click = s => mobile ? p.locator(s).tap() : p.locator(s).click();
       const ready = s => p.locator(s).waitFor({ state: 'visible' });
       const sound = '#game-screen [data-sound]';
+      const interrupt = async () => p.evaluate(async () => {
+        await audioProbe.contexts[0].suspend();
+        // A synthetic click has no user activation and leaves resume pending.
+        document.querySelector('#game-screen [data-sound]').click();
+      });
       const waitBlocked = async () => {
         await p.waitForFunction(() => audioProbe.blocked > 0 && audioProbe.contexts[0]?.state === 'suspended');
         assert.equal(await p.locator(sound).innerText(), '소리 재개');
@@ -56,13 +61,15 @@ const assert = require('node:assert/strict');
         assert.notEqual(await p.evaluate(() => localStorage.getItem('windward-audio-enabled')), 'off');
       };
       await p.goto(url); await click('#start-button'); await ready('#dock');
-      await click('#harbor-button'); await ready('#voyage-screen'); await waitBlocked();
+      await click('#harbor-button'); await ready('#voyage-screen'); await waitAudio();
+      await interrupt(); await waitBlocked();
       await click('#voyage-heading'); await waitAudio();
       assert.ok(await p.evaluate(() => audioProbe.gestures > 0), 'A later gesture retries even with a pending resume');
       await click('#open-chart-button'); await click('#return-sea-button');
       assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1);
 
-      await p.reload(); await click('#start-button'); await ready('#voyage-screen'); await waitBlocked();
+      await p.reload(); await click('#start-button'); await ready('#voyage-screen'); await waitAudio();
+      await interrupt(); await waitBlocked();
       await click(sound); await waitAudio();
       assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1, 'Resume reuses the existing graph');
       await click(sound);
@@ -74,18 +81,18 @@ const assert = require('node:assert/strict');
       assert.equal(await p.evaluate(() => audioProbe.contexts.length), 0, 'Mute survives full document loading');
       await click(sound); await waitAudio();
 
-      await click('#voyage-enter-port'); await ready('#dock'); await waitBlocked();
-      await p.waitForTimeout(2200);
-      await click(sound);
-      await p.waitForFunction(() => audioProbe.contexts[0]?.state === 'running');
-      assert.equal(await p.evaluate(() => audioProbe.buffers.filter(b => !b.loop && Math.abs(b.duration - 4.14) < .001).length), 0, 'Late unlock never replays an old arrival bell');
-      await click('#harbor-button'); await ready('#voyage-screen'); await waitBlocked();
+      await click('#voyage-enter-port'); await ready('#dock');
+      await p.waitForFunction(() => audioProbe.buffers.some(b => !b.loop && Math.abs(b.duration - 4.14) < .001));
+      assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1, 'Port entry keeps the unlocked audio graph');
+      assert.equal(await p.locator(sound).innerText(), '소리 켜짐');
+      await click('#harbor-button'); await ready('#voyage-screen'); await waitAudio();
+      await interrupt(); await waitBlocked();
       if (mobile) await click('#voyage-heading');
       else { await p.locator('#voyage-canvas').focus(); await p.keyboard.press('ArrowLeft'); }
       await waitAudio();
       await c.close();
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: pending autoplay retries on real touch/mouse/key gestures, resume button does not mute, actual audio signal, one graph, mute persistence and no stale arrival bell.');
+    console.log('PASS: pending autoplay retries on real touch/mouse/key gestures, resume button does not mute, actual audio signal, one graph, mute persistence and automatic port bell.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

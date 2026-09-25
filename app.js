@@ -37,36 +37,33 @@
     $('page-transition').hidden = !message;
     document.documentElement.classList.remove('page-boot');
   }
-  function consumeTransfer() {
-    try {
-      const raw = sessionStorage.getItem(transferKey);
-      sessionStorage.removeItem(transferKey);
-      const transfer = raw ? JSON.parse(raw) : null;
-      const screen = new URLSearchParams(location.search).get('screen');
-      if (transfer && transfer.saveKey === saveKey && transfer.screen === screen && ['port', 'sea'].includes(screen)
-        && typeof transfer.token === 'string' && transfer.token.length > 0
-        && Date.now() - transfer.at >= 0 && Date.now() - transfer.at < 60000) return transfer;
-    } catch (_) {}
-    return null;
+  function resetScreenState(arrived = false) {
+    pendingPortBell = 0; cancelChartPeek(); chartPointers.clear();
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    document.querySelectorAll('details[open]').forEach(details => { details.open = false; });
+    clearTimeout(toastTimer); $('toast').hidden = true; $('service-feedback').hidden = true;
+    seaView = 'sea'; side = arrived ? 'sell' : 'buy';
+    tab = arrived && E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : testMode ? 'ship' : 'market';
+    E.GOODS.forEach(g => { quantities[g.id] = 1; });
+    render(); chart.reset(); voyage.reset();
+    const url = new URL(location.href); url.searchParams.set('screen', state.screen === 'port' ? 'port' : 'sea');
+    history.replaceState(null, '', url.href);
+    window.scrollTo(0, 0);
   }
-  function openGamePage(next, { arrived = false, reset = false, entering = false } = {}) {
+  function refreshGameScreen(next, { arrived = false, entering = false } = {}) {
     if (pageLeaving || !playing || !session.check()) return false;
-    const before = state, screen = next.screen === 'port' ? 'port' : 'sea';
-    const url = new URL(location.href); url.searchParams.set('screen', screen);
+    const before = state;
     try {
-      const token = session.continuationToken();
-      sessionStorage.setItem(transferKey, JSON.stringify({ saveKey, screen, token, at: Date.now(), arrived, reset, entering, port: next.port }));
       state = next;
       if (!save()) throw Error('기록을 저장하지 못해 화면 이동을 취소했습니다. 저장 공간과 브라우저 설정을 확인해 주세요.');
-      pageLeaving = true; pendingPortBell = 0; cancelChartPeek(); chartPointers.clear();
-      document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-      sound.update({ active: false, sea: false, moving: false });
-      pageLoading(screen === 'port' ? '항구를 새로 불러오고 있습니다…' : '항해 화면을 새로 불러오고 있습니다…');
-      location.assign(url.href);
+      // Rebuild transient screen state without discarding the gesture-unlocked audio context.
+      resetScreenState(arrived);
+      if (entering && sound.enabled()) pendingPortBell = performance.now() + 2000;
+      if (arrived) toast(state.log[0]);
+      focusScreen(state.screen === 'port' ? 'port-name' : 'voyage-heading');
       return true;
     } catch (error) {
-      state = before; pageLeaving = false;
-      try { sessionStorage.removeItem(transferKey); } catch (_) {}
+      state = before;
       pageLoading(''); render(); toast(error.message || '화면 이동을 준비하지 못했습니다.', true);
       return false;
     }
@@ -75,7 +72,7 @@
     if (pageLeaving || !playing || !session.check()) return;
     try {
       const next = E.act(state, action);
-      openGamePage(next, { arrived: action.type === 'enter-port' && !state.port, entering: action.type === 'enter-port' });
+      refreshGameScreen(next, { arrived: action.type === 'enter-port' && !state.port, entering: action.type === 'enter-port' });
     } catch (error) { toast(error.message, true); }
   }
   function yieldSession() {
@@ -89,38 +86,23 @@
     cancelChartPeek(); chartPointers.clear(); render();
     sessionNotice('다른 탭에서 진행 중입니다. 이 탭의 항해와 저장을 중지했습니다. 여기서 이어하기를 누르면 최신 기록을 가져옵니다.');
   }
-  async function beginSession(reset = false, transfer = null) {
+  async function beginSession(reset = false) {
     if (starting || pageLeaving) return false;
     starting = true; $('start-button').disabled = true; $('confirm-reset').disabled = true;
     sessionNotice('최신 항해 기록을 확인하고 있습니다. 다른 탭이 멈추면 이어집니다. 계속 기다리는 경우 기존 게임 탭을 닫아 주세요.');
     // Unlock audio during the gesture, before waiting for another tab to finish saving.
     sound.update({ active: true, sea: false, moving: false }); sound.unlock();
     try {
-      if (!await session.claim(transfer?.token) || !session.check()) {
+      if (!await session.claim() || !session.check()) {
         sessionNotice('다른 탭에서 진행 중입니다. 이 탭에서 플레이하려면 이어하기를 눌러 주세요.');
         return false;
       }
       const saved = reset ? null : localStorage.getItem(saveKey) || (testMode ? localStorage.getItem(E.KEY) : null);
       const latest = saved ? E.migrate(JSON.parse(saved)) : E.initial();
       if (!latest) throw Error('저장 기록을 읽을 수 없습니다. 새 항해를 시작하려면 초기화를 확인해 주세요.');
-      if (transfer && ((latest.screen === 'port' ? 'port' : 'sea') !== transfer.screen || latest.port !== transfer.port)) {
-        throw Error('화면 이동 중 기록이 바뀌었습니다. 이어하기로 최신 기록을 다시 열어 주세요.');
-      }
       state = latest; playing = true;
-      if (reset) { tab = 'market'; side = 'buy'; seaView = 'sea'; E.GOODS.forEach(g => { quantities[g.id] = 1; }); }
-      if (!transfer) {
-        if (!openGamePage(state, { reset })) {
-          playing = false; session.release(); render();
-          sessionNotice('저장 또는 화면 이동을 준비하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.');
-        }
-        return false;
-      }
-      side = transfer.arrived ? 'sell' : 'buy';
-      if (transfer.arrived) tab = E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : 'market';
-      render(); chart.reset(); voyage.reset(); sessionNotice('');
-      if (transfer.entering && sound.enabled()) pendingPortBell = performance.now() + 2000;
-      if (transfer.arrived) toast(state.log[0]);
-      if (transfer.reset) toast('리스본에서 새로운 항해가 시작되었습니다.');
+      if (!save()) throw Error('기록을 저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.');
+      resetScreenState(); sessionNotice('');
       return true;
     } catch (error) {
       playing = false; session.release(); render();
@@ -504,6 +486,7 @@
     syncSound();
   });
   window.addEventListener('pagehide', () => {
+    pageLeaving = true;
     sound.update({ active: false, sea: false, moving: false });
     if (playing && session.check()) {
       if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
@@ -518,9 +501,7 @@
   render();
   $('save-status').textContent = storageOK ? saveLabel : '저장 불가 · 이 탭에서만 유지';
   if (storageMessage) toast(storageMessage);
-  const transfer = consumeTransfer();
-  if (transfer) {
-    pageLoading(transfer.screen === 'port' ? '항구를 새로 불러오고 있습니다…' : '항해 화면을 새로 불러오고 있습니다…');
-    beginSession(false, transfer).then(started => { if (started) focusScreen(state.screen === 'port' ? 'port-name' : 'voyage-heading'); });
-  } else pageLoading('');
+  // Discard old v33/v34 handoff tickets; a real reload always waits for Start/Continue.
+  try { sessionStorage.removeItem(transferKey); } catch (_) {}
+  pageLoading('');
 })();

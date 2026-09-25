@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--autoplay-policy=document-user-activation-required'] });
   const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=33', errors = [];
   try {
     for (const mobile of [false, true]) {
@@ -40,7 +40,7 @@ const assert = require('node:assert/strict');
         const old = await p.evaluate(() => documentId);
         if (mobile) await p.locator(selector).tap(); else await p.locator(selector).click();
         await p.locator(screen).waitFor({ state: 'visible' }); await p.locator('#page-transition').waitFor({ state: 'hidden' });
-        assert.notEqual(await p.evaluate(() => documentId), old);
+        assert.equal(await p.evaluate(() => documentId), old);
       };
       const audioReady = () => p.waitForFunction(() => audioProbe.contexts[0]?.state === 'running' && audioProbe.decoded === 9);
       const bellCount = () => p.evaluate(() => audioProbe.buffers.filter(b => !b.loop && Math.abs(b.duration - 4.14) < .001).length);
@@ -53,7 +53,7 @@ const assert = require('node:assert/strict');
       assert.equal(await p.evaluate(() => documentId), seaDoc); assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1);
       await hop('#voyage-enter-port', '#dock'); await audioReady();
       await p.waitForFunction(() => audioProbe.buffers.some(b => !b.loop && Math.abs(b.duration - 4.14) < .001));
-      assert.equal(await bellCount(), 1, 'A fresh port document rings once');
+      assert.equal(await bellCount(), 1, 'Entry rings once without another sound-button press');
       await p.locator('[data-service="market"]').click(); await p.locator('#close-service').click();
       assert.equal(await bellCount(), 1);
       await p.reload(); await p.locator('#entry-screen').waitFor({ state: 'visible' });
@@ -61,7 +61,8 @@ const assert = require('node:assert/strict');
       await hop('#start-button', '#dock'); await audioReady(); assert.equal(await bellCount(), 0, 'Reload/continue does not replay entry');
       await p.locator('#game-screen [data-sound]').click();
       await hop('#harbor-button', '#voyage-screen');
-      assert.equal(await p.evaluate(() => audioProbe.contexts.length), 0, 'Mute survives a new document');
+      assert.equal(await p.evaluate(() => audioProbe.contexts.length), 1, 'The muted graph is retained across screen refresh');
+      await p.waitForFunction(() => audioProbe.contexts[0].state === 'suspended');
       await hop('#voyage-enter-port', '#dock'); assert.equal(await bellCount(), 0);
       await p.locator('#game-screen [data-sound]').click(); await audioReady();
       assert.equal(await bellCount(), 0, 'Unmuting must not replay a muted arrival');
@@ -77,6 +78,6 @@ const assert = require('node:assert/strict');
     await p.locator('#voyage-screen').waitFor({ state: 'visible' });
     assert.equal(await p.locator('#game-screen [data-sound]').isDisabled(), true);
     await quiet.close(); assert.deepEqual(errors, []);
-    console.log('PASS: fresh audio graph per document, continuous chart audio, bell exactly once per entry, no reload/mute replay, desktop/mobile playback and unsupported audio fallback.');
+    console.log('PASS: one gesture-unlocked audio graph across screens, bell once per entry without Resume, no reload/mute replay, desktop/mobile playback and unsupported audio fallback.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

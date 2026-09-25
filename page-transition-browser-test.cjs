@@ -14,8 +14,7 @@ const E = require('./engine.js');
   const hop = async (p, button, selector) => {
     const before = await id(p);
     await p.locator(button).click(); await ready(p, selector);
-    assert.notEqual(await id(p), before, 'The transition creates a new document, not only hidden/shown sections');
-    assert.equal(await p.evaluate(() => performance.getEntriesByType('navigation')[0].type), 'navigate');
+    assert.equal(await id(p), before, 'Screen refresh retains the document and its audio permission');
   };
   async function context(options = {}) {
     const c = await browser.newContext({ reducedMotion: 'reduce', ...options });
@@ -36,10 +35,9 @@ const E = require('./engine.js');
       await p.locator('[data-trade="grain"]').click();
       const purchased = await saved(p); assert.equal(purchased.gold, 668);
       await p.locator('#qty-grain').fill('19'); await p.locator('#close-service').click();
-      await p.evaluate(() => { window.stalePortWidget = true; });
+      await p.evaluate(() => { window.oldQuantityInput = document.getElementById('qty-grain'); });
       await hop(p, '#harbor-button', '#voyage-screen');
       assert.equal(new URL(p.url()).searchParams.get('screen'), 'sea');
-      assert.equal(await p.evaluate(() => window.stalePortWidget), undefined);
       assert.equal((await saved(p)).gold, purchased.gold); assert.equal((await saved(p)).cargo.grain, 2);
       const seaId = await id(p);
       await p.locator('#open-chart-button').click(); await ready(p, '#chart-screen');
@@ -48,8 +46,9 @@ const E = require('./engine.js');
       await hop(p, '#voyage-enter-port', '#dock');
       assert.equal((await saved(p)).voyages, 0, 'Viewing the home harbor twice cannot duplicate a voyage');
       await p.locator('[data-service="market"]').click(); assert.equal(await p.locator('#qty-grain').inputValue(), '1');
+      assert.equal(await p.evaluate(() => oldQuantityInput.isConnected), false, 'Facility content is rebuilt, not just reopened');
       await p.locator('#close-service').click();
-      for (const failedKey of ['windward-v1', 'windward-v1:page-transfer']) {
+      for (const failedKey of ['windward-v1']) {
         const before = await saved(p), doc = await id(p);
         await p.evaluate(key => {
           window.originalSetItem = Storage.prototype.setItem;
@@ -70,7 +69,7 @@ const E = require('./engine.js');
       assert.equal(await p.locator('#dock').isVisible(), true);
       await direct.close();
       const beforeBack = await saved(p);
-      await p.goBack(); await ready(p, '#entry-screen');
+      await p.locator('#return-menu-button').click(); await ready(p, '#entry-screen');
       assert.deepEqual(await saved(p), beforeBack, 'Back never replays an earlier entry action');
       await hop(p, '#start-button', '#dock');
       await p.reload(); await ready(p, '#entry-screen');
@@ -90,7 +89,7 @@ const E = require('./engine.js');
       await c.close();
     }
 
-    // Real first entry is applied once, before the fresh port document boots.
+    // Real first entry is applied once before rebuilding the port screen.
     const c = await context();
     const arrival = E.act(E.initial(), { type: 'show-chart' });
     arrival.port = null; arrival.position = { x: E.portOf('cedar').x, y: E.portOf('cedar').y }; arrival.cargo.grain = 8;
@@ -111,25 +110,17 @@ const E = require('./engine.js');
     assert.deepEqual(await saved(p), delivered, 'Reloading the port never repeats a discovery, delivery or reward');
     await c.close();
 
-    // A slow document navigation must not steal the save lock back from a newer player.
+    // Rebuilding a screen must not bypass ownership of the latest saved game.
     const race = await context(); const old = await race.newPage(); await old.goto(url); await hop(old, '#start-button', '#dock');
     await hop(old, '#harbor-button', '#voyage-screen');
-    let unblock, intercepted;
-    const paused = new Promise(resolve => { intercepted = resolve; });
-    const gate = new Promise(resolve => { unblock = resolve; });
-    await old.route('**/*', async route => {
-      if (route.request().isNavigationRequest() && new URL(route.request().url()).searchParams.get('screen') === 'port') {
-        intercepted(); await gate;
-      }
-      await route.continue();
-    });
-    await old.locator('#voyage-enter-port').click({ noWaitAfter: true }); await paused;
+    await hop(old, '#voyage-enter-port', '#dock');
     const newer = await race.newPage(); await newer.goto(url); await hop(newer, '#start-button', '#dock');
     await newer.locator('[data-service="market"]').click(); await newer.locator('#qty-grain').fill('2'); await newer.locator('[data-trade="grain"]').click();
-    const latest = await saved(newer); unblock(); await ready(old, '#entry-screen');
+    const latest = await saved(newer); await ready(old, '#entry-screen');
+    await old.evaluate(() => document.getElementById('harbor-button').click());
     assert.match(await old.locator('#session-notice').innerText(), /다른 탭/);
     assert.deepEqual(await saved(newer), latest); assert.equal(await newer.locator('#game-screen').isVisible(), true);
     await race.close(); assert.deepEqual(errors, []);
-    console.log('PASS: real document reloads, clean widgets, preserved progress, chart continuity, failed storage, back/reload, reset, mode isolation, single arrival/reward and safe cross-tab handoff race.');
+    console.log('PASS: refreshed facility DOM, clean widgets, preserved document/audio permission and progress, failed storage, reload/reset, mode isolation, single rewards and exclusive cross-tab ownership.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
