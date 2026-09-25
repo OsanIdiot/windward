@@ -61,8 +61,8 @@
       if(points.length) { const p=points.at(-1);$('target-ring').setAttribute('cx',p.x);$('target-ring').setAttribute('cy',p.y);$('target-ring').setAttribute('r',5*pixel); }
       $('current-label').textContent=here?`${here.name} 정박 중`:nav?.running?'항해 중':nearby?'항구 앞 · 입항 대기':'해상 정지';
       $('coordinates').textContent=coords(state.position);
-      $('navigation-status').textContent=nav?`${nav.mode==='auto'?'자동':'수동'}항해 · ${nav.running?'이동 중':'정지됨'}`:here?'바다를 클릭해 출항하세요':'다음 바다 지점을 선택하세요';
-      $('pause-sailing').disabled=!nav; $('pause-sailing').textContent=nav&&!nav.running?'계속':'정지';
+      $('navigation-status').textContent=nav?`${nav.mode==='auto'?'자동':'수동'}항해 · ${state.motion?.braking?'감속 중':nav.running?'이동 중':'정지됨'}`:here?'바다를 클릭해 출항하세요':'다음 바다 지점을 선택하세요';
+      $('pause-sailing').disabled=!nav; $('pause-sailing').textContent=nav&&(!nav.running||nav.stopping)?'계속':'정지';
       if(nav) {
         const q=E.passage(state,points);
         $('route-panel').innerHTML=`<div><h3>${nav.mode==='auto'?E.portLabel(state,nav.targetPort)+' 자동항해':'나의 수동항로'}</h3><p>남은 항로 약 ${Math.ceil(q.distance)} 해도 단위 · 추가 ${q.days}일 / ${q.cost} G<br>${state.discoveries.includes('tide')?'해류 지도 적용 · ':''}새 바다 지점을 누르면 현재 위치에서 방향을 바꿉니다.</p></div>`;
@@ -101,7 +101,7 @@
     $('zoom-in').addEventListener('click',()=>zoom(1/1.3));$('zoom-out').addEventListener('click',()=>zoom(1.3));
     $('chart-home').addEventListener('click',()=>{follow=true;center();});
     $('chart-world').addEventListener('click',()=>{follow=false;camera={x:0,y:0,w:G.width,h:G.height};clampCamera();render();});
-    $('pause-sailing').addEventListener('click',()=>toggle(read().navigation?.running?'pause':'resume'));
+    $('pause-sailing').addEventListener('click',()=>toggle(read().navigation?.running&&!read().navigation.stopping?'pause':'resume'));
     window.addEventListener('resize',render);
     clampCamera(); center();
     return { render, reset:()=>{follow=true;center();} };

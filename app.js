@@ -33,7 +33,7 @@
   }
   function yieldSession() {
     if (playing) {
-      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
       save();
     }
     playing = false;
@@ -96,9 +96,10 @@
       const adventureBefore = state.adventureWon;
       state = E.act(state, action);
       save();
+      if (action.type === 'pause') cancelChartPeek();
       if (action.type === 'resume' && seaView === 'map' && state.navigation?.running) showVoyage();
       else render();
-      if (!['show-chart', 'enter-port'].includes(action.type)) toast(!adventureBefore && state.adventureWon ? '모험 목표 달성! 지중해의 모든 발견을 기록했습니다.' : !wonBefore && state.won ? '목표 달성! 지중해가 인정하는 무역상이 되었습니다.' : state.log[0]);
+      if (!['show-chart', 'enter-port'].includes(action.type)) toast(action.type === 'pause' && state.navigation?.stopping ? '돛을 내리고 서서히 정지합니다.' : !adventureBefore && state.adventureWon ? '모험 목표 달성! 지중해의 모든 발견을 기록했습니다.' : !wonBefore && state.won ? '목표 달성! 지중해가 인정하는 무역상이 되었습니다.' : state.log[0]);
       return true;
     } catch (error) { toast(error.message, true); return false; }
   }
@@ -282,7 +283,7 @@
     if (playing && state.navigation?.running && dt > 0 && !document.hidden) {
       const wasPort = state.port;
       try { state = E.advance(state, dt); }
-      catch (error) { state = E.act(state, { type: 'pause' }); toast(error.message, true); }
+      catch (error) { state = E.act(state, { type: 'pause', immediate: true }); toast(error.message, true); }
       renderStats(); renderMap();
       if (wasPort !== state.port || !state.navigation?.running) {
         if (state.port) { side = 'sell'; tab = E.CONTRACTS.find(c => c.id === state.activeContract)?.to === state.port ? 'contracts' : 'market'; }
@@ -319,7 +320,7 @@
     }
     if (button.id === 'return-menu-button') {
       $('service-dialog').close();
-      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
       save(); session.release(); playing = false; render();
       clearTimeout(toastTimer); $('toast').hidden = true;
       focusScreen('entry-title'); return;
@@ -430,13 +431,13 @@
   document.addEventListener('visibilitychange', () => {
     if (playing) session.check();
     if (document.hidden) { cancelChartPeek(); chartPointers.clear(); }
-    if (playing && document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause' }); save(); renderMap(); }
+    if (playing && document.hidden && state.navigation?.running) { state = E.act(state, { type: 'pause', immediate: true }); save(); renderMap(); }
     syncSound();
   });
   window.addEventListener('pagehide', () => {
     sound.update({ active: false, sea: false, moving: false });
     if (playing && session.check()) {
-      if (state.navigation?.running) state = E.act(state, { type: 'pause' });
+      if (state.navigation?.running) state = E.act(state, { type: 'pause', immediate: true });
       save();
     }
     session.release(); playing = false;

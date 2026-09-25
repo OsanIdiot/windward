@@ -16,7 +16,9 @@ test('helm steering preserves cargo, supports pause/reload, and can be changed m
   assert.equal(start.port,'lume');assert.equal(moving.port,null);
   assert.equal(moving.navigation.mode,'manual');assert.equal(moving.cargo.grain,10);
   const atSea=E.advance(moving,.5),paused=E.act(atSea,{type:'pause'});
-  assert.deepEqual(E.advance(paused,1).position,paused.position);
+  const stopped=run(paused);
+  assert.ok(N.distance(stopped.position,paused.position)>0);
+  assert.deepEqual(E.advance(stopped,1).position,stopped.position);
   const resumed=E.act(E.migrate(JSON.parse(JSON.stringify(paused))),{type:'resume'});
   const turned=E.act(resumed,{type:'steer',heading:180});
   assert.deepEqual(turned.position,resumed.position);assert.ok(E.valid(turned));
@@ -44,7 +46,8 @@ test('departure accelerates smoothly and pause/resume starts again from rest',()
   assert.ok(distances[0]>0&&distances[0]<4);
   assert.ok(distances.every((d,i)=>i===0||d>=distances[i-1]));
   assert.ok(s.motion.speed>.95);
-  s=E.act(s,{type:'pause'});assert.equal(s.motion.speed,0);
+  s=E.act(s,{type:'pause'});assert.equal(s.motion.speed,1);
+  s=run(s);assert.equal(s.motion.speed,0);
   const resumed=E.advance(E.act(s,{type:'resume'}),.25);
   assert.ok(resumed.motion.speed>0&&resumed.motion.speed<.15);
   assert.ok(N.distance(resumed.position,s.position)<1);
@@ -208,7 +211,7 @@ test('movement is incremental; pause and steering use the actual current positio
   s=E.act(s,{type:'navigate',mode:'manual',point:target});
   assert.equal(s.port,null);const origin={...s.position};
   s=E.advance(s,.1);assert.ok(N.distance(s.position,origin)>0);assert.ok(N.distance(s.position,target)>0);
-  s=E.act(s,{type:'pause'});const paused={...s.position};
+  s=run(E.act(s,{type:'pause'}));const paused={...s.position};
   assert.deepEqual(E.advance(s,1).position,paused);
   const steer=N.project(-12,37);
   s=E.act(s,{type:'navigate',mode:'manual',point:steer});assert.deepEqual(s.position,paused);

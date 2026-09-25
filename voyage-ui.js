@@ -74,12 +74,12 @@
       text('voyage-bearing',`${directions[Math.round(degree/45)%8]} · ${degree}°`);
       $('voyage-needle').style.transform=`rotate(${degree}deg)`;
       text('voyage-position',`${Math.abs(coordinate.lat).toFixed(2)}° N · ${Math.abs(coordinate.lon).toFixed(2)}° ${coordinate.lon>=0?'E':'W'}`);
-      text('voyage-motion',nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
+      text('voyage-motion',nav?.stopping?'돛을 내리고 감속 중':nav?.running?(nav.mode==='auto'?'자동항해 중':'직접 조타 · 항해 중'):nav?'돛을 내리고 정지 중':near?'항구 앞바다':'잔잔한 바다 · 정지');
       const speed = nav?.running ? state.motion?.speed ?? 1 : 0;
-      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${Math.round(speed*100)}% · ${speed===0?'정지':state.motion?.turning?'선회 중':speed<.95?'가속 중':'순항'}`);
+      text('voyage-speed',`${E.SHIPS[state.ship].name} · ${Math.round(speed*100)}% · ${speed===0?'정지':state.motion?.braking?'감속 중':state.motion?.turning?'선회 중':speed<.95?'가속 중':'순항'}`);
       text('voyage-mood',near?`${E.portLabel(state,near.id)} 앞바다`:visible.length?'수평선 너머, 항구의 모습':'바람을 따라, 더 먼 바다로');
-      text('voyage-status',nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
-      $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&!nav.running?'계속':'정지');
+      text('voyage-status',nav?.stopping?'서서히 속도를 줄이고 있습니다. 계속을 누르거나 바다를 눌러 다시 출발하세요.':nav?.running?(nav.mode==='auto'?`${E.portLabel(state,nav.targetPort)}(으)로 향하고 있습니다.`:'바다를 다시 누르면 방향을 바꿉니다.'):nav?'정지했습니다. 계속 버튼으로 같은 항로를 이어갑니다.':near?'가까운 항구로 입항하거나 바다를 눌러 출항하세요.':'바다를 눌러 방향을 정하세요. 해안·해역 경계·예산 한계에서는 정지합니다.');
+      $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&(!nav.running||nav.stopping)?'계속':'정지');
       const html=near&&!nav?.running?`<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,near.id)} · 입항 가능</h3><p>처음 입항하면 항구 이름과 자동항해가 열립니다.</p></div><button class="primary" id="voyage-enter-port">입항 →</button>`:`<div><p class="eyebrow">THE OPEN WATER</p><p>미확인 항구는 가까이 접근한 뒤 입항하세요.</p></div>${!state.port?'<button class="secondary rescue-button" id="voyage-rescue"><span>귀환 지원</span><small>3일 / 최대 40 G</small></button>':''}`;
       if($('voyage-arrival').innerHTML!==html)$('voyage-arrival').innerHTML=html;
     }
@@ -129,9 +129,9 @@
     canvas.addEventListener('keydown',event=>{
       const angles={ArrowUp:0,ArrowRight:90,ArrowDown:180,ArrowLeft:270};
       if(event.key in angles){event.preventDefault();if(!event.repeat)steer(angles[event.key]);}
-      if(event.code==='Space'){event.preventDefault();if(!event.repeat&&read().navigation)toggle(read().navigation.running?'pause':'resume');}
+      if(event.code==='Space'){event.preventDefault();if(!event.repeat&&read().navigation)toggle(read().navigation.running&&!read().navigation.stopping?'pause':'resume');}
     });
-    $('voyage-pause').addEventListener('click',()=>toggle(read().navigation?.running?'pause':'resume'));
+    $('voyage-pause').addEventListener('click',()=>toggle(read().navigation?.running&&!read().navigation.stopping?'pause':'resume'));
     $('voyage-ports').addEventListener('click',event=>{
       const button=event.target.closest('[data-voyage-port]');if(!button)return;
       const state=read(),id=button.dataset.voyagePort,p=E.portOf(id);

@@ -37,6 +37,7 @@ const path = require('node:path');
   await page.waitForFunction(p=>{const s=JSON.parse(localStorage.getItem(Windward.KEY));return s?.navigation?.running&&Math.hypot(s.position.x-p.x,s.position.y-p.y)>0;},origin);
   assert.equal(await page.locator('#voyage-screen').isVisible(),true);
   await page.locator('#voyage-pause').click();
+  await page.waitForFunction(()=>!JSON.parse(localStorage.getItem(Windward.KEY)).navigation?.running);
   let s=await saved();assert.equal(s.port,null);assert.equal(s.navigation.running,false);
   assert.ok(Math.hypot(s.position.x-origin.x,s.position.y-origin.y)>0);
   assert.ok(Math.hypot(s.position.x-sea.x,s.position.y-sea.y)>1);

@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run game tests
-        run: node --test engine.test.cjs navigation.test.cjs audio-assets.test.cjs
+        run: node --test engine.test.cjs navigation.test.cjs braking.test.cjs audio-assets.test.cjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Prepare only browser assets
