@@ -122,6 +122,40 @@
       ctx.restore();
       const visible=renderPorts(state);
       for(const {x,y} of visible){ctx.save();ctx.translate(x,y);ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
+      for (const site of E.seaSightings(state)) {
+        const { x, y } = C.project(site, state.position, cameraView());
+        if (x < 22 || x > width - 22 || y < 100 || y > height - 75) continue;
+        const found = state.seaDiscoveries.includes(site.id), known = state.seaClues.includes(site.id);
+        ctx.save(); ctx.translate(x, y);
+        ctx.strokeStyle = '#e2eee0aa'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(0, 6, 23, 7, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#3c6259'; ctx.fillStyle = '#c7b58a'; ctx.lineWidth = 2;
+        if (site.id === 'seabirds') {
+          for (const [bx, by] of [[-14, -4], [2, -13], [15, 0]]) {
+            const wing = 4 + Math.sin(time * 2 + bx) * 1.5;
+            ctx.beginPath(); ctx.moveTo(bx - 6, by - wing); ctx.quadraticCurveTo(bx - 2, by - wing, bx, by); ctx.quadraticCurveTo(bx + 2, by - wing, bx + 6, by - wing); ctx.stroke();
+          }
+        } else if (site.id === 'wreck') {
+          ctx.fillStyle = '#8a6c4c'; ctx.fillRect(-17, 1, 34, 5);
+          ctx.beginPath(); ctx.moveTo(-6, 4); ctx.lineTo(3, -22); ctx.stroke();
+          ctx.fillStyle = '#e8ddbf'; ctx.beginPath(); ctx.moveTo(3, -22); ctx.lineTo(15, -11); ctx.lineTo(0, -7); ctx.fill();
+        } else if (site.id === 'shoal') {
+          ctx.fillStyle = '#7c9783'; ctx.beginPath(); ctx.moveTo(-20, 5); ctx.lineTo(-9, -8); ctx.lineTo(0, 2); ctx.lineTo(9, -14); ctx.lineTo(20, 5); ctx.closePath(); ctx.fill();
+        } else if (site.id === 'dolphins') {
+          ctx.beginPath(); ctx.moveTo(-20, 1); ctx.quadraticCurveTo(-4, -19, 10, -4); ctx.lineTo(15, 3); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(0, -19); ctx.lineTo(3, -7); ctx.stroke();
+        } else {
+          ctx.fillRect(-11, -10, 22, 17); ctx.strokeRect(-11, -10, 22, 17);
+          ctx.beginPath(); ctx.moveTo(-11, -10); ctx.lineTo(11, 7); ctx.moveTo(11, -10); ctx.lineTo(-11, 7); ctx.stroke();
+        }
+        ctx.translate(23, -17);
+        ctx.fillStyle = '#f3eddce8'; ctx.strokeStyle = found ? '#376c60' : '#9b7051'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#355d53'; ctx.textAlign = 'center'; ctx.font = '15px Georgia';
+        ctx.fillText(found ? '+' : '?', 0, 5);
+        ctx.font = '11px Georgia'; ctx.fillText(found ? site.name : known ? '해상 단서' : '수평선의 흔적', -23, -18);
+        ctx.restore();
+      }
       ship(time,moving,state.ship,state.motion?.speed??1);
       if(stamp-lastHUD>100||!dt){renderHUD(state,visible);renderMini(state);lastHUD=stamp;}
     }

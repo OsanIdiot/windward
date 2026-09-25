@@ -3,7 +3,10 @@
   root.createSeaUI = function ({ read, navigate, toggle, notify }) {
     const E = root.Windward, N = E.N, G = N.G;
     const $ = id => document.getElementById(id), svg = $('sea-map');
-    let follow = true, camera = { x: 45, y: 220, w: 430, h: 270 }, markerKey = '';
+    let follow = true, camera = { x: 45, y: 220, w: 430, h: 270 }, markerKey = '', clueKey = '';
+    const clueLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    clueLayer.id = 'sea-clue-markers'; clueLayer.setAttribute('pointer-events', 'none');
+    $('map-markers').before(clueLayer);
     let pointers = new Map(), gesture = null;
     const coords = p => { const c = N.unproject(p); return `${Math.abs(c.lat).toFixed(2)}° ${c.lat >= 0 ? 'N' : 'S'} · ${Math.abs(c.lon).toFixed(2)}° ${c.lon >= 0 ? 'E' : 'W'}`; };
     $('real-land').innerHTML = `<path d="${G.rings.map(r => 'M' + r.map(p => p.join(',')).join('L') + 'Z').join('')}" fill="#e5dec3" stroke="#91a68c" stroke-width=".7" vector-effect="non-scaling-stroke" fill-rule="evenodd"/>`;
@@ -53,6 +56,14 @@
         camera.x=state.position.x-camera.w/2; camera.y=state.position.y-camera.h/2; clampCamera();
       }
       const matrix=svg.getScreenCTM(), pixel=matrix?.a>0?1/matrix.a:camera.w/700;
+      const nextClueKey = state.seaClues.join(',') + '/' + state.seaDiscoveries.join(',');
+      if (nextClueKey !== clueKey) {
+        clueKey = nextClueKey;
+        clueLayer.innerHTML = E.SEA_SITES.filter(s => state.seaClues.includes(s.id)).map(s => {
+          const found = state.seaDiscoveries.includes(s.id);
+          return `<g transform="translate(${s.x} ${s.y})"><g class="marker-pixel"><circle r="9" fill="#f3eddc" stroke="#9b7051"/><text y="4" text-anchor="middle" fill="#386457" font-size="12">${found ? '+' : '?'}</text><text y="-15" text-anchor="middle" class="port-caption">${found ? s.name : '海 · 해상 단서'}</text></g></g>`;
+        }).join('');
+      }
       document.querySelectorAll('.marker-pixel').forEach(g=>g.setAttribute('transform',`scale(${pixel})`));
       $('map-ship').setAttribute('transform',`translate(${state.position.x} ${state.position.y}) scale(${pixel})`);
       const points=nav?.points || [];

@@ -10,7 +10,7 @@
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let state = E.initial(), tab = testMode ? 'ship' : 'market', side = 'buy', toastTimer, chart, voyage, sound, seaView = 'sea';
-  let previousFrame = 0, lastSave = 0;
+  let previousFrame = 0, lastSave = 0, seaDiscoveriesUI;
   let chartReturnAt = 0;
   const chartPointers = new Set();
   let playing = false, hasVoyage = false, pageLeaving = false, pendingPortBell = 0;
@@ -253,7 +253,10 @@
     $('dock-content').setAttribute('aria-labelledby', `tab-${tab}`);
     if (tab === 'market') renderMarket();
     if (tab === 'ship') renderShip();
-    if (tab === 'adventure') renderAdventure();
+    if (tab === 'adventure') {
+      renderAdventure();
+      $('dock-content').insertAdjacentHTML('afterbegin', `<p><button class="secondary" data-sea-atlas aria-haspopup="dialog" aria-controls="sea-atlas-dialog">해상 발견 도감 · ${state.seaDiscoveries.length}/${E.SEA_SITES.length}</button></p>`);
+    }
     if (tab === 'contracts') renderContracts();
     if (tab === 'log') $('dock-content').innerHTML = `<p class="hint">${state.day}일의 여정 · ${state.voyages}번의 항해<br>가장 최근 기록부터 표시됩니다.</p><ol class="log-list">${state.log.map(line => `<li>${escape(line)}</li>`).join('')}</ol>`;
     for (const p of E.PORTS) if (!state.visited.includes(p.id)) $('dock-content').innerHTML = $('dock-content').innerHTML.split(p.name).join('미확인 항구');
@@ -337,6 +340,7 @@
       } else if (stamp - lastSave > 700) { save(); lastSave = stamp; }
     }
     voyage?.render(stamp);
+    seaDiscoveriesUI?.render(stamp);
     updateChartPeek(stamp);
     syncSound();
     if (pendingPortBell) {
@@ -453,6 +457,7 @@
   }
   chart = window.createSeaUI({ read: () => state, navigate, toggle: type => perform({ type }), notify: toast });
   voyage = window.createVoyageUI({ read: () => state, steer, navigate, toggle: type => perform({ type }), notify: toast });
+  seaDiscoveriesUI = window.createDiscoveryUI({ read: () => state, active: () => playing && !pageLeaving && session.check(), perform, navigate });
   sound = window.createSeaAudio({ notify: toast, changed: ({ enabled, supported, waiting }) => {
     document.querySelectorAll('[data-sound]').forEach(button => {
       button.textContent = !supported ? '소리 미지원' : waiting ? '소리 재개' : enabled ? '소리 켜짐' : '소리 꺼짐';

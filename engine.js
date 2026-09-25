@@ -33,6 +33,16 @@
     { id: 'garden', port: 'saffron', name: '알렉산드리아 식물 표본', kind: '식물 발견', days: 3, cost: 180, reward: 340, fame: 20, requires: ['tide'], rumor: '항해 지식을 교환하며 이집트 시장의 식물과 교역품 표본을 조사합니다.', story: '시장의 식물 표본을 분류하고 상인들의 이야기를 기록했습니다. 협조한 상인이 추천 편지를 건넸습니다.', benefit: '추천 편지 획득: 아드리아해 서고를 찾는 두 번째 단서.' },
     { id: 'archive', port: 'haven', name: '베네치아의 해도 서고', kind: '최종 발견', days: 4, cost: 260, reward: 520, fame: 35, requires: ['stars', 'garden'], rumor: '상인의 문서와 추천 편지가 있으면 베네치아의 해도 기록을 조사할 수 있습니다.', story: '해도와 항해 일지를 대조해 나만의 지중해 항로집을 완성했습니다. 서로 다른 항구에서 모은 지식이 하나로 이어졌습니다.', benefit: '지중해 항로집 완성. 다섯 탐험의 이야기를 모두 기록했습니다.' }
   ];
+  // Fictional encounters on the historical chart, not claims about real wrecks.
+  const SEA_SITES = [
+    { id: 'seabirds', name: '물새들의 쉼터', clue: '수면 위를 맴도는 새 떼', kind: '자연 관찰', sea: [-9.65, 38.25], reward: 80, fame: 5, story: '새들이 낮게 도는 곳에서 작은 물고기 떼를 발견했습니다. 물결과 새들의 움직임을 항해 일지에 그려 넣었습니다.' },
+    { id: 'wreck', name: '부서진 배의 항해 일지', clue: '물결에 흔들리는 부서진 돛대', kind: '난파 흔적', sea: [-7.4, 36.3], reward: 120, fame: 8, story: '떠다니는 선체 조각에서 방수 천으로 감싼 일지를 건졌습니다. 이름 없는 선원이 남긴 별자리 스케치를 도감에 보관했습니다.' },
+    { id: 'shoal', name: '푸른 여울의 암초', clue: '유난히 밝게 빛나는 얕은 물', kind: '해역 조사', sea: [3.0, 40.25], reward: 100, fame: 6, story: '배를 안전한 물에 세우고 망원경으로 물빛을 살폈습니다. 수면 아래 암초의 윤곽을 그려 다음 항해에 참고할 표식을 남겼습니다.' },
+    { id: 'dolphins', name: '뱃머리를 앞서는 돌고래', clue: '수평선 가까이 튀어 오르는 물보라', kind: '자연 관찰', sea: [7.7, 43.25], reward: 90, fame: 6, story: '돌고래 무리가 배 옆을 지나갔습니다. 잠시 돛을 내리고 기다리며 등지느러미와 헤엄치는 모습을 기록했습니다.' },
+    { id: 'cargo', name: '바다가 돌려준 도기', clue: '밧줄에 엉킨 작은 부유물', kind: '표류물 조사', sea: [17.3, 41.9], reward: 130, fame: 8, story: '낡은 그물에 싸인 도기 조각을 건져 올렸습니다. 바닥의 상인 표식을 베껴 항해 도감에 남겼습니다.' }
+  ].map(s => ({ ...s, ...N.nearestSea(N.project(...s.sea)) }));
+  const SIGHT_RANGE = 75, SURVEY_RANGE = 7;
+  const seaSightings = state => state.screen === 'chart' ? SEA_SITES.filter(s => N.distance(state.position, s) <= SIGHT_RANGE && N.clear(state.position, s)) : [];
   const CONTRACTS = [
     { id: 'bread', from: 'lume', to: 'cedar', name: '항구의 제빵사를 위해', good: 'grain', qty: 8, reward: 260, fame: 8, story: '카디스의 제빵사가 새로 문을 엽니다. 밀을 구해 전해주세요.' },
     { id: 'loom', from: 'cedar', to: 'azure', name: '직조공의 새 베틀', good: 'timber', qty: 10, reward: 540, fame: 10, story: '제노바의 직조공들이 튼튼한 목재로 새 베틀을 만들고 싶어 합니다.' },
@@ -42,7 +52,7 @@
   ];
   // Legacy IDs and storage key preserve existing voyages as geography changes.
   const KEY = 'windward-v1';
-  const adventureDefaults = () => ({ discoveries: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
+  const adventureDefaults = () => ({ discoveries: [], seaClues: [], seaDiscoveries: [], contractsDone: [], activeContract: null, reputation: 0, adventureWon: false });
   const bearing = (a, b) => (Math.atan2(b.x - a.x, a.y - b.y) * 180 / Math.PI + 360) % 360;
   const angleDelta = (from, to) => (to - from + 540) % 360 - 180;
   const BRAKE = .45;
@@ -182,6 +192,22 @@
   function act(input, action) {
     const state = JSON.parse(JSON.stringify(input));
     state.motion ||= motionDefaults(state);
+    state.seaClues ??= []; state.seaDiscoveries ??= [];
+    if (action.type === 'lookout') {
+      if (state.screen !== 'chart') throw Error('바다에 나가 망원경을 펼쳐 주세요.');
+      const found = seaSightings(state).filter(s => !state.seaClues.includes(s.id));
+      state.seaClues.push(...found.map(s => s.id));
+      return finish(state, found.length ? `망원경으로 새로운 단서 ${found.length}곳을 찾았습니다. 가까이 접근해 정지한 뒤 조사하세요.` : '주변을 살폈습니다. 새 단서는 없습니다. 다른 해역에서 다시 살펴보세요.');
+    }
+    if (action.type === 'survey-sea') {
+      const site = SEA_SITES.find(s => s.id === action.site);
+      if (!site || !state.seaClues.includes(site.id)) throw Error('망원경으로 단서를 먼저 찾아주세요.');
+      if (state.seaDiscoveries.includes(site.id)) throw Error('이미 도감에 기록한 발견입니다.');
+      if (state.screen !== 'chart' || state.port || N.distance(state.position, site) > SURVEY_RANGE || !N.clear(state.position, site)) throw Error('단서 가까이 접근한 뒤 조사해 주세요.');
+      if (state.navigation?.running || state.motion.speed > 0) throw Error('배가 완전히 멈춘 뒤 조사해 주세요.');
+      state.seaDiscoveries.push(site.id); state.gold += site.reward; state.earned += site.reward; state.reputation += site.fame;
+      return finish(state, `해상 발견: ${site.name}. 기록 보상 ${site.reward} G · 명성 +${site.fame}.`);
+    }
     if (action.type === 'show-chart') { state.screen = 'chart'; return state; }
     if (action.type === 'enter-port') {
       if (state.navigation?.running) throw Error('배를 정지한 뒤 입항해 주세요.');
@@ -333,7 +359,9 @@
       if (nav.mode === 'auto' && N.distance(nav.points.at(-1), portOf(nav.targetPort)) > 0.01) return false;
     }
     const ids = (array, known) => Array.isArray(array) && new Set(array).size === array.length && array.every(id => known.some(item => item.id === id));
-    return ids(s.discoveries, SITES) && ids(s.contractsDone, CONTRACTS)
+    return (s.seaClues === undefined || ids(s.seaClues, SEA_SITES))
+      && (s.seaDiscoveries === undefined || (ids(s.seaDiscoveries, SEA_SITES) && s.seaDiscoveries.every(id => (s.seaClues || []).includes(id))))
+      && ids(s.discoveries, SITES) && ids(s.contractsDone, CONTRACTS)
       && s.discoveries.every(id => { const site = SITES.find(item => item.id === id); return s.visited.includes(site.port) && site.requires.every(required => s.discoveries.includes(required)); })
       && (s.activeContract === null || CONTRACTS.some(c => c.id === s.activeContract && !s.contractsDone.includes(c.id)))
       && Number.isSafeInteger(s.reputation) && s.reputation >= 0 && typeof s.adventureWon === 'boolean';
@@ -345,11 +373,12 @@
     if (next.version === 3) next = { ...next, version: 4, screen: next.port ? 'port' : 'chart' };
     if (next.navigation) next.navigation = { ...next.navigation, running: false };
     if (!valid(next)) return null;
+    next.seaClues ??= []; next.seaDiscoveries ??= [];
     if (next.navigation) next.navigation.stopping = false;
     next.motion = { ...(next.motion || motionDefaults(next)), speed: 0, turning: false, braking: false };
     return JSON.parse(JSON.stringify(next));
   }
-  const api = { GOODS, PORTS, SHIPS, SITES, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
+  const api = { GOODS, PORTS, SHIPS, SITES, SEA_SITES, SIGHT_RANGE, SURVEY_RANGE, seaSightings, CONTRACTS, KEY, N, initial, portOf, nearbyPort, portLabel, used, price, quote, plan, passage, advance, act, valid, migrate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Windward = api;
 })(typeof window !== 'undefined' ? window : globalThis);
