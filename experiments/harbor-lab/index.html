@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#103c48">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:,">
+  <title>바람의 항로 · 리스본 2.5D 미술 시험</title>
+  <link rel="stylesheet" href="lab.css">
+  <script src="geography.js" defer></script>
+  <script src="navigation.js" defer></script>
+  <script src="engine.js" defer></script>
+  <script src="model.js" defer></script>
+  <script type="module" src="lab.js" onerror="document.getElementById('loading').hidden=true;document.getElementById('failure').hidden=false;document.getElementById('failure-message').textContent='화면 파일을 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.'"></script>
+</head>
+<body>
+  <main id="experience" aria-label="리스본 해안 항해 시제품">
+    <canvas id="scene" tabindex="0" aria-label="바다를 클릭하거나 터치해 이동. 방향키로 조타, 스페이스로 정지."></canvas>
+    <header class="masthead">
+      <div class="brand"><span class="rose" aria-hidden="true">✧</span><div>바람의 항로<small>WINDWARD / COASTAL STUDY 01</small></div></div>
+      <div class="supplies" aria-label="시험용 상태"><span><i>G</i> <b id="gold">700</b></span><span>화물 <b>0 / 24</b></span></div>
+      <button id="about" class="menu" aria-label="시험 화면 안내">☰</button>
+    </header>
+    <section class="location" aria-label="해역 안내"><span class="eyebrow">PORTUGAL · c.1550</span><h1>리스본 앞바다</h1><div class="fine-rule"></div><p id="wind">바람을 읽는 중</p><span class="experiment">2.5D 미술 시험 · 저장하지 않음</span></section>
+    <aside class="instruments" aria-label="나침반과 화면 설정"><div class="compass" aria-hidden="true"><div id="compass-rose"><span>N</span><i></i><b>S</b></div><em>✦</em></div><button id="camera" aria-pressed="true">선수 고정</button><button id="quality" aria-pressed="false">화질 · 경량</button></aside>
+    <div id="port-label" class="world-label" hidden>리스본 <small>벨렝 해안</small></div>
+    <div id="notice" class="notice" role="status">바다를 눌러 첫 항로를 그려보세요</div>
+    <footer class="helm">
+      <div class="ship-readout"><span class="eyebrow">THE LITTLE SWALLOW</span><strong>제비호 <i>·</i> <span id="motion">정박 중</span></strong><small id="bearing">000° N</small></div>
+      <nav aria-label="항해 조작">
+        <button id="lookout" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m5 21 15-12 6 7-16 11Z M19 9l3-2 7 8-3 2 M5 21l-2 2 4 5 3-2 M16 22l4 8 M16 22l-4 8"/></svg><span>망원경</span></button>
+        <button id="chart"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m3 7 8-3 10 4 8-3v22l-8 3-10-4-8 3Z M11 4v22 M21 8v22"/></svg><span>해도</span></button>
+        <button id="stop"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 6v20M22 6v20" stroke-width="5"/></svg><span id="stop-label">정지</span></button>
+      </nav>
+      <button id="reset" class="reset">출발 위치로</button>
+    </footer>
+    <div id="loading" class="loading" role="status"><span class="rose">✧</span><h2>테주강의 바람을 기다리며</h2><p>항해 풍경을 준비하고 있습니다.</p></div>
+    <div id="failure" class="loading" role="alert" hidden><h2>항해 화면을 열지 못했습니다</h2><p id="failure-message"></p><button id="retry">다시 불러오기</button></div>
+  </main>
+  <dialog id="chart-dialog" aria-labelledby="chart-title"><header><div><span class="eyebrow">A WORKING SEA CHART</span><h2 id="chart-title">리스본 연안 해도</h2></div><button data-close="chart-dialog" aria-label="해도 닫기">닫기</button></header><canvas id="chart-canvas" width="600" height="600" aria-label="리스본 주변 육지와 현재 배 위치"></canvas><p>항해 범위와 배 위치를 확인하는 해도입니다. 조타는 바다 화면에서 해주세요.</p><p class="hint">해도를 펼치면 시험 항해가 일시 정지됩니다.</p></dialog>
+  <dialog id="about-dialog" aria-labelledby="about-title"><header><div><span class="eyebrow">COASTAL STUDY 01</span><h2 id="about-title">새로운 항해 풍경</h2></div><button data-close="about-dialog" aria-label="안내 닫기">닫기</button></header><p>그림을 통째로 회전시키지 않고, 물·지형·건물·배를 분리해 그리는 3D 시험 화면입니다.</p><dl><dt>조타</dt><dd>바다 클릭·터치 / 방향키. 스페이스로 정지·계속.</dd><dt>지도</dt><dd>본 게임의 리스본 주변 해안선과 육지 판정을 사용합니다. 건물·식생·높이는 창작 연출입니다.</dd><dt>진행 기록</dt><dd>공개 게임과 연결하지 않습니다. 저장·불러오기·음향·교역·입항 기능은 없습니다. 시연 항해는 본 게임 시간의 15% 속도로 진행합니다.</dd><dt>화질</dt><dd>경량: 최대 30 FPS, 해상도 제한, 실시간 그림자 없음. 선명: 최대 60 FPS, 더 높은 해상도와 그림자. 항해 속도는 같습니다. 팝업·배경 탭에서는 그리기를 멈춥니다.</dd></dl><p class="hint">WebGL 2 지원이 필요합니다. 실제 휴대폰의 발열·배터리·프레임은 기기에서 확인해야 합니다. Three.js r180 / MIT.</p><p id="diagnostics" class="diagnostics"></p></dialog>
+  <noscript>이 시험 화면은 JavaScript와 WebGL 2가 필요합니다. 기존 게임 저장에는 영향을 주지 않습니다.</noscript>
+</body>
+</html>
