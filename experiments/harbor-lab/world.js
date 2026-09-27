@@ -1,27 +1,11 @@
 import * as T from './vendor/three.module.min.js';
 import {createPaintedTown} from './painted.js';
+import {coastSampler,terrainData} from './terrain-data.js';
 export const noise=(x,y)=>{const n=Math.sin(x*12.9898+y*78.233)*43758.5453;return n-Math.floor(n);};
-const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 export function createWorld(scene,M,art,options={}) {
-  const extent=options.extent||260,segments=[];
-  const rings=M.E.N.G.rings.map(r=>r.map(([x,y])=>M.local({x,y})));
-  for(const ring of rings) for(let i=0;i<ring.length;i++){
-    const a=ring[i],b=ring[(i+1)%ring.length];
-    if(Math.min(a.x,b.x)>extent+50||Math.max(a.x,b.x)<-extent-50||Math.min(a.z,b.z)>extent+50||Math.max(a.z,b.z)<-extent-50)continue;
-    segments.push([a,b]);
-  }
-  function coastDistance(x,z) {
-    let d=1000;
-    for(const [a,b] of segments){const dx=b.x-a.x,dz=b.z-a.z,l=dx*dx+dz*dz,t=l?clamp(((x-a.x)*dx+(z-a.z)*dz)/l,0,1):0;d=Math.min(d,Math.hypot(x-a.x-dx*t,z-a.z-dz*t));}
-    return d;
-  }
-  const isLand=(x,z)=>!M.E.N.isSea(M.world({x,z}));
-  const elevation=(x,z)=>1.2+Math.min(9,coastDistance(x,z)*.09)*( .65+.35*Math.sin(x*.027+z*.015)**2);
-  const size=256,data=new Uint8Array(size*size*4);
-  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
-    const px=(x/(size-1)*2-1)*extent,pz=(y/(size-1)*2-1)*extent,k=(y*size+x)*4;
-    data[k]=Math.round(clamp(coastDistance(px,pz)/48,0,1)*255);data[k+1]=isLand(px,pz)?0:255;data[k+2]=0;data[k+3]=255;
-  }
+  const extent=options.extent||260,sampler=coastSampler(M,extent);
+  const {rings,coastDistance,isLand,elevation}=sampler;
+  const {size,data,points,uv,indices}=options.prepared||terrainData(sampler,extent);
   const depth=new T.DataTexture(data,size,size,T.RGBAFormat);depth.minFilter=depth.magFilter=T.LinearFilter;depth.needsUpdate=true;
   function texture(kind) {
     const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
@@ -50,15 +34,12 @@ export function createWorld(scene,M,art,options={}) {
     const mesh=new T.Mesh(geo,[surfaceMat,cliffMat]);mesh.receiveShadow=true;scene.add(mesh);
   }
   // Higher inland relief is independent of the exact collision coastline.
-  const points=[],uv=[],indices=[],step=4,count=Math.floor(extent*2/step)+1,landFlags=[];
-  for(let z=0;z<count;z++)for(let x=0;x<count;x++){const px=-extent+x*step,pz=-extent+z*step;points.push(px,elevation(px,pz),pz);uv.push(x/(count-1),z/(count-1));landFlags.push(isLand(px,pz));}
-  for(let z=0;z<count-1;z++)for(let x=0;x<count-1;x++){const a=z*count+x,b=a+1,c=a+count,d=c+1;if(landFlags[a]&&landFlags[c]&&landFlags[b])indices.push(a,c,b);if(landFlags[b]&&landFlags[c]&&landFlags[d])indices.push(b,c,d);}
-  const terrain=new T.BufferGeometry();terrain.setAttribute('position',new T.Float32BufferAttribute(points,3));terrain.setAttribute('uv',new T.Float32BufferAttribute(uv,2));terrain.setIndex(indices);terrain.computeVertexNormals();const terrainMesh=new T.Mesh(terrain,surfaceMat);terrainMesh.receiveShadow=true;scene.add(terrainMesh);
+  const terrain=new T.BufferGeometry();terrain.setAttribute('position',new T.BufferAttribute(points,3));terrain.setAttribute('uv',new T.BufferAttribute(uv,2));terrain.setIndex(new T.BufferAttribute(indices,1));terrain.computeVertexNormals();const terrainMesh=new T.Mesh(terrain,surfaceMat);terrainMesh.receiveShadow=true;scene.add(terrainMesh);
   if(art){
     let portPosition=null;
     if(options.town!==false){
       const center=options.townCenter||{x:0,z:0},town=new T.Group();town.position.set(center.x,0,center.z);scene.add(town);
-      portPosition=createPaintedTown(town,{isLand:(x,z)=>isLand(x+center.x,z+center.z),coastDistance:(x,z)=>coastDistance(x+center.x,z+center.z),elevation:(x,z)=>elevation(x+center.x,z+center.z)},art).add(town.position);
+      portPosition=createPaintedTown(town,{isLand:(x,z)=>isLand(x+center.x,z+center.z),coastDistance:(x,z)=>coastDistance(x+center.x,z+center.z),elevation:(x,z)=>elevation(x+center.x,z+center.z)},art,{compact:options.compact}).add(town.position);
     }
     return {extent,depth,coastDistance,isLand,elevation,portPosition,materials:art};
   }

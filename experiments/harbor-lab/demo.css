@@ -11,3 +11,27 @@
 .demo-quality{margin:8px 0;min-height:44px;font-size:11px}
 @media(max-width:740px){.demo-banner{font-size:11px}.demo-render-note{bottom:88px}}
 @media(max-width:360px){#play-mode-label{display:none}}
+.helm-help #voyage-camera-toggle{margin-left:8px}
+@media(max-width:900px){
+  #voyage-screen.painted-mode{position:relative}
+  .painted-mode>.section-heading{position:absolute;right:10px;top:10px;z-index:5;margin:0}
+  .painted-mode>.section-heading h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .painted-mode #open-chart-button{background:#f3eedbea;border-color:#a7b7a1;color:#315d56}
+  .painted-mode .voyage-stage{height:calc(100svh - 268px - env(safe-area-inset-bottom));min-height:240px}
+  .painted-mode .voyage-caption{top:16px;left:12px;padding:0;border:0;background:none;max-width:calc(100% - 138px);color:#f3eedb;text-shadow:0 1px 4px #143d46}
+  .painted-mode .voyage-caption h3{font-size:15px;margin:0;line-height:1.4}
+  .painted-mode .voyage-caption .eyebrow,.painted-mode .voyage-caption>span{display:none}
+  .painted-mode .voyage-wind{position:absolute;z-index:3;top:42px;left:10px;right:auto;padding:0;border:0;background:none;color:#dce6d6;pointer-events:none;text-shadow:0 1px 3px #143d46}
+  .painted-mode #voyage-wind-effect{display:none}
+  .painted-mode .voyage-instruments{top:68px;right:15px}
+  .painted-mode .voyage-compass{width:36px;height:36px;--north-offset:-12px;background:#f1efd8a8;box-shadow:none}
+  .painted-mode .voyage-compass i{scale:.65}
+  .painted-mode .voyage-instruments>span,.painted-mode .voyage-minimap{display:none}
+  .painted-mode #lookout-button{left:auto;right:12px;bottom:12px;min-height:44px;font-size:11px;padding:8px 12px}
+  .painted-mode .voyage-readout{left:12px;bottom:19px;max-width:calc(100% - 155px)}
+  .painted-mode #voyage-motion{display:none}
+  .painted-mode .voyage-controls{min-height:46px;padding-top:4px}
+  .painted-mode .arrival-panel{min-height:50px}
+  .painted-mode .voyage-port{background:#f3eedbdf;border-color:#abb8a0;box-shadow:none}
+  .painted-mode .demo-site{font-size:9px}.painted-mode .demo-site i{font-size:16px;line-height:23px}
+}

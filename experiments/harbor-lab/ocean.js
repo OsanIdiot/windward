@@ -80,7 +80,7 @@ export function createOcean(scene, depth, extent,origin={x:0,z:0},waterMap=water
   return {update(time, camera, position, heading, speed, hullScale=1) {
     uniforms.time.value=time;uniforms.eye.value.copy(camera.position);uniforms.ship.value.set(position.x,position.z);
     uniforms.direction.value.set(Math.sin(heading),-Math.cos(heading));uniforms.speed.value=speed;uniforms.hullScale.value=hullScale;
-  }, material};
+  }, material,mesh};
 }
 
 const clamp01=x=>Math.min(1,Math.max(0,x));

@@ -38,9 +38,11 @@ Sound and camera preferences are also namespaced, including the 2D fallback.
 There is no account or cloud save; browser/device records remain independent.
 
 `package-demo.cjs` copies an explicit browser-asset allowlist. It generates the
-entry HTML and changes only the namespace literals in the copied audio/fallback
-files. The stable app, engine, chart, discovery and session scripts are copied
-unchanged. No production source file is edited by the build.
+entry HTML and changes the namespace literals in the copied audio/fallback
+files. The copied app also memoizes the visible stats signature to avoid replacing
+unchanged counters and hidden objective markup on every animation frame. The
+engine, chart, discovery and session scripts are copied unchanged; navigation and
+simulation cadence remain identical. No production source file is edited.
 
 WebGL or painted-asset initialization failure falls back to the existing 2D
 sailing renderer. Graphics context loss during play pauses the ship and leaves
@@ -61,11 +63,38 @@ Hidden screens/dialogs do not draw. Reduced-motion avoids idle redraws and retai
 finite wake fade. Discovery dialogs still allow sailing, as the original game
 explicitly describes. Desktop Edge tests do not establish real phone performance.
 
+## Mobile Follow-Up
+
+Mobile uses a taller sea stage, closer portrait framing, a smaller compass and a
+single chart button instead of a large overlaid minimap. Coordinates and duplicate
+status decoration are hidden; camera settings remain in the existing help panel.
+The ship model, real coastline, collision and shore-wave texture retain their detail.
+Only inland relief and decorative trees/rocks use a lower geometry budget.
+
+Depth and relief calculations run in a module Web Worker. The main thread keeps
+the previous region visible while preparing its replacement; a deep-water layer
+covers the remaining area. If workers are unavailable, the same deterministic
+calculations run in small asynchronous slices. At most one region is prepared at
+a time and the existing three-region cache remains bounded. DOM site markers are
+reused and the hidden mobile minimap does not redraw.
+
+`node experiments/harbor-lab/mobile.bench.cjs` compares a real Lisbon-to-Cadiz trip
+with desktop Edge's CPU throttled 4x at 390x844. One before/after run recorded
+six long tasks of 837-1326 ms before, and four of 86-105 ms after. Visible triangles
+at the destination decreased from 80,408 to 39,584. These are laboratory long-task
+measurements, not actual-phone FPS or a guarantee of stutter-free play.
+An additional installed Chrome run at 1280x900 without CPU throttling recorded
+no tasks over 50 ms during the same voyage (initial loading excluded). The
+benchmark accepts `BROWSER_CHANNEL`, `WIDTH`, `HEIGHT` and `CPU_RATE` overrides.
+Build-specific URL hashes cover the entry scripts, CSS, nested modules and worker
+imports so a new public release cannot silently reuse the previous demo code.
+
 ## Checks
 
 ```powershell
 node --test experiments/harbor-lab/demo-package.test.cjs experiments/harbor-lab/wake.test.cjs
 node experiments/harbor-lab/demo.browser.test.cjs
+node experiments/harbor-lab/mobile.browser.test.cjs
 ```
 
 Browser checks require Playwright and Edge, with the demo server running.

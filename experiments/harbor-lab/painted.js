@@ -53,7 +53,7 @@ function gableGeometry(){
   geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.computeVertexNormals();return geo;
 }
 
-export function createPaintedTown(scene,terrain,art){
+export function createPaintedTown(scene,terrain,art,{compact=false}={}){
   const {isLand,coastDistance,elevation}=terrain,root=new T.Group();root.name='painted-town';scene.add(root);
   const b=batchGeometry(root),roofGeo=gableGeometry(),buildings=[],shadowGeo=new T.PlaneGeometry(1,1);
   function footprint(x,z,sx,sz,angle){return [[-sx/2,-sz/2],[sx/2,-sz/2],[-sx/2,sz/2],[sx/2,sz/2],[0,0]].every(([dx,dz])=>isLand(x+dx*Math.cos(angle)+dz*Math.sin(angle),z-dx*Math.sin(angle)+dz*Math.cos(angle)));}
@@ -97,12 +97,12 @@ export function createPaintedTown(scene,terrain,art){
   }
   const crown=new T.IcosahedronGeometry(1,1),trunk=new T.CylinderGeometry(.1,.16,1,5);
   let trees=0;
-  for(let i=0;i<700&&trees<115;i++){const x=(noise(i,11)*2-1)*150,z=(noise(i,12)*2-1)*150;if(!isLand(x,z)||coastDistance(x,z)<4||buildings.some(p=>Math.hypot(x-p.x,z-p.z)<5))continue;const y=elevation(x,z),h=2+noise(i,13)*2;
+  for(let i=0;i<700&&trees<(compact?40:115);i++){const x=(noise(i,11)*2-1)*150,z=(noise(i,12)*2-1)*150;if(!isLand(x,z)||coastDistance(x,z)<4||buildings.some(p=>Math.hypot(x-p.x,z-p.z)<5))continue;const y=elevation(x,z),h=2+noise(i,13)*2;
     b.add(trunk,art.wood,[x,y+h*.35,z],[1,h*.7,1]);
     for(let j=0;j<3;j++)b.add(crown,art.leaf,[x+Math.sin(j*2)*.7,y+h+j*.35,z+Math.cos(j*2)*.5],[1.1,h*.48,1], [0,i,0],['#adb48b','#899979','#c4c59c'][j]);trees++;
   }
   const rock=new T.DodecahedronGeometry(1,0);let rocks=0;
-  for(let i=0;i<1600&&rocks<150;i++){const x=(noise(i,21)*2-1)*130,z=(noise(i,22)*2-1)*130,d=coastDistance(x,z);if(!isLand(x,z)||d<.5||d>5)continue;const r=Math.min(d*.75,.7+noise(i,23)*1.7);b.add(rock,art.stone,[x,.6,z],[r,1+noise(i,24)*2,r*.8],[0,i,0]);rocks++;}
+  for(let i=0;i<1600&&rocks<(compact?50:150);i++){const x=(noise(i,21)*2-1)*130,z=(noise(i,22)*2-1)*130,d=coastDistance(x,z);if(!isLand(x,z)||d<.5||d>5)continue;const r=Math.min(d*.75,.7+noise(i,23)*1.7);b.add(rock,art.stone,[x,.6,z],[r,1+noise(i,24)*2,r*.8],[0,i,0]);rocks++;}
   b.finish();root.userData.buildings=buildings.length;return towerPoint?new T.Vector3(towerPoint.x,towerPoint.y+13,towerPoint.z):new T.Vector3();
 }
 

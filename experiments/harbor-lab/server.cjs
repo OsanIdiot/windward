@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
-const local = new Set(['index.html','lab.css','lab.js','model.js','world.js','ocean.js','painted.js','painted-materials.webp','vendor/three.module.min.js','vendor/three.core.min.js','vendor/LICENSE-three.txt']);
+const local = new Set(['index.html','lab.css','lab.js','model.js','world.js','terrain-data.js','ocean.js','painted.js','painted-materials.webp','vendor/three.module.min.js','vendor/three.core.min.js','vendor/LICENSE-three.txt']);
 const shared = new Set(['geography.js','navigation.js','engine.js']);
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp'};
 const host = process.env.HOST || '127.0.0.1', port = Number(process.env.PORT || 4179);

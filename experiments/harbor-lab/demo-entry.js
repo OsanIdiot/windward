@@ -9,7 +9,7 @@ try{
   document.getElementById('demo-note').textContent='3D 화면을 준비하지 못해 기존 항해 화면으로 실행합니다. 체험판 기록은 별도로 저장됩니다.';
 }
 try{
-  await script('app.js');status.remove();
+  await script('./app.js');status.remove();
   document.getElementById('play-mode-label').textContent='체험판';
   document.getElementById('play-mode-label').title='2.5D 통합 체험판 · 정식판과 별도 저장';
   document.getElementById('start-button').disabled=false;

@@ -24,7 +24,7 @@ async function fixture(browser,{width=390,height=844,state=null,fallback=false,m
   return{page,context,errors};
 }
 async function isolation(page){assert.equal(await page.evaluate(()=>testGet.call(localStorage,'windward-v1')),sentinel);assert.equal(await page.evaluate(()=>testGet.call(localStorage,'windward-camera')),'north');}
-async function departure(page){await page.click('#harbor-button');await page.waitForFunction(()=>windwardDemo.snapshot().draws>0);}
+async function departure(page){await page.click('#harbor-button');await page.waitForFunction(()=>windwardDemo.snapshot().chunk&&!windwardDemo.snapshot().loading);}
 (async()=>{
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try{
@@ -42,7 +42,7 @@ async function departure(page){await page.click('#harbor-button');await page.wai
       assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
       if(width<=390)assert.ok(await p.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2),'Compact portrait sailing fits the viewport');
       await p.screenshot({path:path.join(__dirname,`demo-${width}.png`),fullPage:true});
-      await p.click('#voyage-camera-toggle');assert.equal((await snapshot(p)).headingUp,false);await p.click('#voyage-camera-toggle');
+      await p.locator('.helm-help summary').click();await p.click('#voyage-camera-toggle');assert.equal((await snapshot(p)).headingUp,false);await p.click('#voyage-camera-toggle');await p.locator('.helm-help summary').click();
       await p.click('#open-chart-button');await p.locator('#chart-screen').waitFor({state:'visible'});await p.click('#return-sea-button');
       await p.click('#lookout-button');assert.ok((await snapshot(p)).state.seaClues.includes('seabirds'));await p.click('[data-close="sea-atlas-dialog"]');
       const tap=await p.evaluate(()=>{
@@ -75,7 +75,7 @@ async function departure(page){await page.click('#harbor-button');await page.wai
     let arrival=E.act(E.act(E.initial(),{type:'trade',side:'buy',good:'grain',qty:8}),{type:'accept',contract:'bread'});
     arrival=E.act(arrival,{type:'show-chart'});arrival.port=null;arrival.position={x:E.PORTS[1].x,y:E.PORTS[1].y};arrival.gold=100000;
     const run=await fixture(browser,{state:arrival}),p=run.page;
-    await p.waitForFunction(()=>windwardDemo.snapshot().draws>0);assert.match(await p.locator('#voyage-arrival').innerText(),/미확인 항구/);
+    await p.waitForFunction(()=>windwardDemo.snapshot().chunk);assert.match(await p.locator('#voyage-arrival').innerText(),/미확인 항구/);
     await p.click('#voyage-enter-port');assert.ok((await snapshot(p)).state.visited.includes('cedar'));
     await p.click('[data-service="contracts"]');await p.click('#deliver-button');assert.deepEqual((await snapshot(p)).state.contractsDone,['bread']);assert.equal((await snapshot(p)).state.cargo.grain,0);
     await p.click('#tab-ship');
@@ -88,7 +88,7 @@ async function departure(page){await page.click('#harbor-button');await page.wai
     // Each actual port and sea discovery can be rendered outside the old Lisbon-only area.
     for(const target of [...E.PORTS,...E.SEA_SITES]){
       const s=E.act(E.initial(),{type:'show-chart'});s.port=null;s.position={x:target.x,y:target.y};
-      const run=await fixture(browser,{state:s});await run.page.waitForFunction(()=>windwardDemo.snapshot().draws>0);
+      const run=await fixture(browser,{state:s});await run.page.waitForFunction(()=>windwardDemo.snapshot().chunk);
       if(E.SEA_SITES.includes(target)){
         await run.page.click('#lookout-button');await run.page.click(`[data-sea-survey="${target.id}"]`);
         assert.ok((await snapshot(run.page)).state.seaDiscoveries.includes(target.id));
