@@ -4,21 +4,21 @@ import {coastSampler,terrainData} from './terrain-data.js';
 export const noise=(x,y)=>{const n=Math.sin(x*12.9898+y*78.233)*43758.5453;return n-Math.floor(n);};
 export function createWorld(scene,M,art,options={}) {
   const extent=options.extent||260,sampler=coastSampler(M,extent);
-  const {rings,coastDistance,isLand,elevation}=sampler;
+  const {rings,coastDistance,isLand,elevation,textureUV}=sampler;
   const {size,data,points,uv,indices}=options.prepared||terrainData(sampler,extent);
   const depth=new T.DataTexture(data,size,size,T.RGBAFormat);depth.minFilter=depth.magFilter=T.LinearFilter;depth.needsUpdate=true;
   function texture(kind) {
     const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
     g.fillStyle={land:'#b4b290',wall:'#eee4d2',roof:'#a97055',wood:'#aa8053',sail:'#f7efdb'}[kind];g.fillRect(0,0,256,256);
-    if(kind==='land')for(let i=0;i<150;i++){const x=noise(i,51)*256,y=noise(i,52)*256,r=5+noise(i,53)*25;const patch=g.createRadialGradient(x,y,0,x,y,r);patch.addColorStop(0,i%3?'#49634d55':'#ead8b57a');patch.addColorStop(1,'#49634d00');g.fillStyle=patch;g.fillRect(x-r,y-r,r*2,r*2);}
-    for(let i=0;i<4500;i++){const x=noise(i,2)*256,y=noise(i,3)*256;g.fillStyle=i%2?'#ffffff12':'#172c2c12';g.fillRect(x,y,1+noise(i,4)*5,1+noise(i,5)*3);}
+    if(kind==='land')for(let i=0;i<110;i++){const x=noise(i,51)*256,y=noise(i,52)*256,r=12+noise(i,53)*28;for(const dx of [-256,0,256])for(const dy of [-256,0,256]){const px=x+dx,py=y+dy;if(px+r<0||px-r>256||py+r<0||py-r>256)continue;const patch=g.createRadialGradient(px,py,0,px,py,r);patch.addColorStop(0,i%3?'#49634d40':'#ead8b55c');patch.addColorStop(1,'#49634d00');g.fillStyle=patch;g.fillRect(px-r,py-r,r*2,r*2);}}
+    if(kind!=='land')for(let i=0;i<4500;i++){const x=noise(i,2)*256,y=noise(i,3)*256;g.fillStyle=i%2?'#ffffff12':'#172c2c12';g.fillRect(x,y,1+noise(i,4)*5,1+noise(i,5)*3);}
     if(kind==='roof'||kind==='wood'||kind==='wall'||kind==='sail') {
       const rows=kind==='sail'?32:16;g.strokeStyle=kind==='sail'?'#9c8a5b33':'#37291e35';g.lineWidth=1;
       for(let y=0;y<256;y+=rows){g.beginPath();g.moveTo(0,y);g.lineTo(256,y);g.stroke();if(kind==='wall'||kind==='roof')for(let x=0;x<256;x+=32){g.beginPath();g.moveTo(x+(y%32),y);g.lineTo(x+(y%32),y+rows);g.stroke();}}
     }
     const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=2;return t;
   }
-  const terrainTexture=texture('land');terrainTexture.repeat.set(12,12);
+  const terrainTexture=texture('land');terrainTexture.minFilter=T.LinearMipmapLinearFilter;terrainTexture.magFilter=T.LinearFilter;terrainTexture.generateMipmaps=true;terrainTexture.anisotropy=4;
   const surfaceMat=new T.MeshStandardMaterial({color:'#d0cfb0',map:terrainTexture,roughness:1});
   const cliffMat=new T.MeshStandardMaterial({color:'#d6c29a',map:texture('wall'),roughness:1});
   function clip(poly,axis,limit,less) {
@@ -30,11 +30,14 @@ export function createWorld(scene,M,art,options={}) {
     let poly=ring;for(const [axis,limit,less] of [['x',-extent,false],['x',extent,true],['z',-extent,false],['z',extent,true]])poly=clip(poly,axis,limit,less);
     if(poly.length<3)continue;
     const shape=new T.Shape(poly.map(p=>new T.Vector2(p.x,-p.z)));
-    const geo=new T.ExtrudeGeometry(shape,{depth:2,bevelEnabled:false,steps:1});geo.rotateX(-Math.PI/2);geo.translate(0,-.8,0);
-    const mesh=new T.Mesh(geo,[surfaceMat,cliffMat]);mesh.receiveShadow=true;scene.add(mesh);
+    // Keep the base below relief, with identical world-anchored UVs on both surfaces.
+    const geo=new T.ExtrudeGeometry(shape,{depth:1.96,bevelEnabled:false,steps:1});geo.rotateX(-Math.PI/2);geo.translate(0,-.8,0);
+    const positions=geo.attributes.position,coords=geo.attributes.uv;
+    for(const group of geo.groups)if(group.materialIndex===0)for(let i=group.start;i<group.start+group.count;i++){const t=textureUV(positions.getX(i),positions.getZ(i));coords.setXY(i,t.u,t.v);}
+    const mesh=new T.Mesh(geo,[surfaceMat,cliffMat]);mesh.name='coast-base';mesh.receiveShadow=true;scene.add(mesh);
   }
   // Higher inland relief is independent of the exact collision coastline.
-  const terrain=new T.BufferGeometry();terrain.setAttribute('position',new T.BufferAttribute(points,3));terrain.setAttribute('uv',new T.BufferAttribute(uv,2));terrain.setIndex(new T.BufferAttribute(indices,1));terrain.computeVertexNormals();const terrainMesh=new T.Mesh(terrain,surfaceMat);terrainMesh.receiveShadow=true;scene.add(terrainMesh);
+  const terrain=new T.BufferGeometry();terrain.setAttribute('position',new T.BufferAttribute(points,3));terrain.setAttribute('uv',new T.BufferAttribute(uv,2));terrain.setIndex(new T.BufferAttribute(indices,1));terrain.computeVertexNormals();const terrainMesh=new T.Mesh(terrain,surfaceMat);terrainMesh.name='inland-relief';terrainMesh.receiveShadow=true;scene.add(terrainMesh);
   if(art){
     let portPosition=null;
     if(options.town!==false){

@@ -95,6 +95,14 @@ and minimap updates stay throttled to 180 ms. Edge clearance fades markers over
 12 pixels rather than popping into view, without position easing that would lag
 behind the coast during turns. Compass/wind rotation follows the same draw cadence.
 
+Land caps and inland relief share a geography-anchored texture scale (one tile per
+16 chart units). The original extrusion UVs multiplied by 12 were inconsistent
+with the relief UVs, producing excessively dense coast texture. Land now uses
+soft, wrapped patches without single-pixel grain, mip filtering and anisotropy 4.
+The coast base sits 0.04 scene units below the minimum relief height to avoid
+near-coplanar depth flicker. Coast outlines, wave shaders, simulation and render
+resolution are unchanged; no postprocessing or extra draw calls are added.
+
 ## Checks
 
 ```powershell
@@ -102,6 +110,7 @@ node --test experiments/harbor-lab/demo-package.test.cjs experiments/harbor-lab/
 node experiments/harbor-lab/demo.browser.test.cjs
 node experiments/harbor-lab/mobile.browser.test.cjs
 node experiments/harbor-lab/markers.browser.test.cjs
+node experiments/harbor-lab/terrain.browser.test.cjs
 ```
 
 Browser checks require Playwright and Edge, with the demo server running.

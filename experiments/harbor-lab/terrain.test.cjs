@@ -15,3 +15,16 @@ test('worker data and sliced fallback agree, with lower mobile relief detail but
   assert.ok(sync.data instanceof Uint8Array);assert.ok(sync.points instanceof Float32Array);assert.ok(sync.indices instanceof Uint32Array);
   for(const i of mobile.indices)assert.ok(i<mobile.points.length/3);
 });
+test('land UVs stay fixed to geography across streamed regions and relief resolutions',async()=>{
+  const {coastSampler,terrainData,landUV}=await import('./terrain-data.js');
+  const point={x:132,y:364},expected=landUV(point);
+  for(const center of [{x:128,y:368},{x:136,y:360}]){
+    const M={E,local:p=>({x:(p.x-center.x)*4,z:(p.y-center.y)*4}),world:p=>({x:p.x/4+center.x,y:p.z/4+center.y})},s=coastSampler(M,24),p=M.local(point);
+    assert.deepEqual(s.textureUV(p.x,p.z),expected);
+    for(const step of [4,8]){
+      const data=terrainData(s,24,{size:8,step}),count=48/step+1,i=(p.z+24)/step*count+(p.x+24)/step;
+      assert.equal(data.uv[i*2],expected.u);assert.equal(data.uv[i*2+1],expected.v);
+      assert.ok(Math.abs(s.textureUV(p.x+64,p.z).u-expected.u-1)<1e-9,'Texture repeats once per 64 scene units, not twelve times per unit');
+    }
+  }
+});
