@@ -89,15 +89,25 @@ benchmark accepts `BROWSER_CHANNEL`, `WIDTH`, `HEIGHT` and `CPU_RATE` overrides.
 Build-specific URL hashes cover the entry scripts, CSS, nested modules and worker
 imports so a new public release cannot silently reuse the previous demo code.
 
+Port and sea-clue markers keep stable DOM elements and project their fractional
+pixel transforms using the exact camera of each rendered frame (30/60 Hz). Text
+and minimap updates stay throttled to 180 ms. Edge clearance fades markers over
+12 pixels rather than popping into view, without position easing that would lag
+behind the coast during turns. Compass/wind rotation follows the same draw cadence.
+
 ## Checks
 
 ```powershell
 node --test experiments/harbor-lab/demo-package.test.cjs experiments/harbor-lab/wake.test.cjs
 node experiments/harbor-lab/demo.browser.test.cjs
 node experiments/harbor-lab/mobile.browser.test.cjs
+node experiments/harbor-lab/markers.browser.test.cjs
 ```
 
 Browser checks require Playwright and Edge, with the demo server running.
+The marker check defaults to Chrome (`BROWSER_CHANNEL` overrides it) and checks
+projection alignment and stable DOM identity while sailing/turning at mobile and
+desktop sizes, with both camera modes.
 `DEMO_URL` overrides the local address. They cover four viewport sizes, trading,
 exploration, contracts/delivery, all ship tiers/port regions, sea surveys, actual
 cross-region travel, braking, chart/port transitions, audio context reuse and bell

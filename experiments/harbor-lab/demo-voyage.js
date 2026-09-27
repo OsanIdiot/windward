@@ -29,7 +29,7 @@ function createIntegratedVoyage({read,steer,navigate,toggle,notify},art){
   // Keep the accepted coastal study's proportions, but never advance its test simulation.
   // app.js is the single owner of gameplay, travel time, saves and sound.
   const mobile=matchMedia('(max-width:900px)'),compact=mobile.matches,terrainLoader=createTerrainLoader(N);
-  const chunks=new Map();let chunk,pendingChunk=null,headingUp=true,high=false,width=0,height=0,lastDraw=0,lastStamp=0,time=0,lastHUD=0,press=null,failed=false,draws=0,dirty=true,tier=-1,lastPose='',siteKey='';
+  const chunks=new Map();let chunk,pendingChunk=null,headingUp=true,high=false,width=0,height=0,lastDraw=0,lastStamp=0,time=0,lastHUD=0,press=null,failed=false,draws=0,dirty=true,tier=-1,lastPose='',siteKey='',markersDirty=true,windFrom=0;
   const deep=new T.DataTexture(new Uint8Array([255,255,0,255]),1,1,T.RGBAFormat);deep.needsUpdate=true;
   const openSea=createOcean(scene,deep,10000);openSea.mesh.position.y=-.05;
   const waterMap=openSea.material.uniforms.waterMap.value,wake=createShipWake(scene,waterMap);
@@ -38,6 +38,12 @@ function createIntegratedVoyage({read,steer,navigate,toggle,notify},art){
   const ray=new T.Raycaster(),seaPlane=new T.Plane(new T.Vector3(0,1,0),0),hit=new T.Vector3();
   const mini=$('voyage-minimap').getContext('2d'),land=new Path2D(N.G.rings.map(r=>'M'+r.map(p=>p.join(',')).join('L')+'Z').join(''));
   const sites=document.createElement('div');sites.className='demo-sites';$('voyage-stage').append(sites);
+  const portMarkers=E.PORTS.map(point=>{
+    const element=document.createElement('button');element.type='button';element.className='voyage-port';element.dataset.voyagePort=point.id;element.hidden=true;$('voyage-ports').append(element);return{point,element};
+  });
+  const siteMarkers=E.SEA_SITES.map(point=>{
+    const element=document.createElement('span'),symbol=document.createElement('i'),label=document.createElement('span');element.className='demo-site';element.dataset.site=point.id;element.hidden=true;element.append(symbol,label);sites.append(element);return{point,element,symbol,label,visible:false};
+  });
   const quality=document.createElement('button');quality.className='secondary demo-quality';quality.type='button';quality.textContent='화질 · 경량';quality.setAttribute('aria-pressed','false');document.querySelector('.helm-help summary').after(quality);
   quality.after($('voyage-camera-toggle'));
   $('voyage-screen').classList.add('painted-mode');
@@ -81,10 +87,9 @@ function createIntegratedVoyage({read,steer,navigate,toggle,notify},art){
   function project(point){const p=local(point),v=new T.Vector3(p.x,0,p.z).project(camera);return{x:(v.x*.5+.5)*width,y:(-.5*v.y+.5)*height,z:v.z};}
   const text=(id,value)=>{if($(id).textContent!==value)$(id).textContent=value;};
   function hud(state){
-    const near=E.nearbyPort(state),nav=state.navigation,wind=E.windAt(state),bearing=headingUp?state.motion.heading:0,directions=['북','북동','동','남동','남','남서','서','북서'];
+    const near=E.nearbyPort(state),nav=state.navigation,wind=E.windAt(state),directions=['북','북동','동','남동','남','남서','서','북서'];
+    windFrom=wind.from;
     text('voyage-wind-label',`${directions[Math.round(wind.from/45)%8]}풍 · ${Math.round(wind.knots)} kn`);text('voyage-wind-effect',`${wind.kind} · 순항 목표 ${Math.round(wind.factor*100)}%`);
-    $('voyage-wind-arrow').style.transform=`rotate(${wind.from+180-bearing}deg)`;$('voyage-needle').style.transform=`rotate(${-bearing}deg)`;
-    $('voyage-north').style.transform=`translate(-50%,-50%) rotate(${-bearing}deg) translateY(var(--north-offset)) rotate(${bearing}deg)`;
     $('voyage-stage').dataset.camera=headingUp?'heading':'north';
     text('voyage-bearing',`${directions[Math.round(state.motion.heading/45)%8]} · ${Math.round(state.motion.heading)%360}°`);
     const coord=N.unproject(state.position);text('voyage-position',`${coord.lat.toFixed(2)}° N · ${Math.abs(coord.lon).toFixed(2)}° ${coord.lon<0?'W':'E'}`);
@@ -95,32 +100,45 @@ function createIntegratedVoyage({read,steer,navigate,toggle,notify},art){
     $('voyage-pause').disabled=!nav;text('voyage-pause',nav&&(!nav.running||nav.stopping)?'계속':'정지');
     const arrival=near&&!nav?.running?`<div><p class="eyebrow">READY TO GO ASHORE</p><h3>${E.portLabel(state,near.id)} · 입항 가능</h3></div><button class="primary" id="voyage-enter-port">입항 →</button>`:`<div><p>미확인 항구는 가까이 접근해 입항하세요.</p></div>${!state.port?'<button class="secondary rescue-button" id="voyage-rescue"><span>귀환 지원</span><small>3일 / 최대 40 G</small></button>':''}`;
     if($('voyage-arrival').innerHTML!==arrival)$('voyage-arrival').innerHTML=arrival;
-    const visible=E.PORTS.map(p=>{const v=project(p);return{p,...v,y:v.y-(width<600?72:48)};}).filter(v=>v.z>-1&&v.z<1&&v.x>42&&v.x<width-42&&v.y>120&&v.y<height-100&&!(v.x>width-140&&v.y<180)&&!(v.x<240&&v.y<180));
-    const key=visible.map(({p})=>p.id+state.visited.includes(p.id)).join(',');
-    if($('voyage-ports').dataset.key!==key){$('voyage-ports').dataset.key=key;$('voyage-ports').innerHTML=visible.map(({p})=>`<button class="voyage-port" data-voyage-port="${p.id}">${E.portLabel(state,p.id)}</button>`).join('');}
-    for(const {p,x,y} of visible){const el=$('voyage-ports').querySelector(`[data-voyage-port="${p.id}"]`);el.style.left=x+'px';el.style.top=y+'px';}
-    const sightings=E.seaSightings(state).map(s=>({s,...project(s)})).filter(v=>v.x>24&&v.x<width-24&&v.y>100&&v.y<height-80),nextSiteKey=sightings.map(({s})=>s.id+state.seaDiscoveries.includes(s.id)).join(',');
-    if(nextSiteKey!==siteKey){siteKey=nextSiteKey;sites.innerHTML=sightings.map(({s})=>`<span class="demo-site" data-site="${s.id}"><i>${state.seaDiscoveries.includes(s.id)?'◇':'?'}</i>${state.seaDiscoveries.includes(s.id)?s.name:'해상 단서'}</span>`).join('');}
-    for(const {s,x,y} of sightings){const el=sites.querySelector(`[data-site="${s.id}"]`);el.style.left=x+'px';el.style.top=y+'px';}
+    for(const {point,element} of portMarkers){const label=E.portLabel(state,point.id);if(element.textContent!==label){element.textContent=label;markersDirty=true;}}
+    const sightings=new Set(E.seaSightings(state).map(s=>s.id)),nextSiteKey=[...sightings,...state.seaDiscoveries].join(',');
+    if(nextSiteKey!==siteKey){siteKey=nextSiteKey;markersDirty=true;for(const marker of siteMarkers){const found=state.seaDiscoveries.includes(marker.point.id);marker.visible=sightings.has(marker.point.id);marker.symbol.textContent=found?'◇':'?';marker.label.textContent=found?marker.point.name:'해상 단서';}}
     if(mobile.matches)return;
     mini.fillStyle='#adc9bd';mini.fillRect(0,0,150,110);mini.save();mini.translate(75-state.position.x*.5,55-state.position.y*.5);mini.scale(.5,.5);mini.fillStyle='#e2dcc0';mini.fill(land,'evenodd');mini.restore();
     for(const p of E.PORTS){const x=75+(p.x-state.position.x)*.5,y=55+(p.y-state.position.y)*.5;if(x<3||x>147||y<3||y>107)continue;mini.fillStyle=state.visited.includes(p.id)?'#386957':'#a68453';mini.beginPath();mini.arc(x,y,2,0,Math.PI*2);mini.fill();}
     mini.save();mini.translate(75,55);mini.rotate(state.motion.heading*Math.PI/180);mini.fillStyle='#a45c42';mini.beginPath();mini.moveTo(0,-6);mini.lineTo(4,5);mini.lineTo(-4,5);mini.closePath();mini.fill();mini.restore();mini.fillStyle='#385d51';mini.fillText('N',7,13);
   }
+  function markerFrame(state){
+    // Use exactly the camera drawn this frame, not the slower text/minimap refresh.
+    const place=(element,p,clearance)=>{
+      const visible=p.z>-1&&p.z<1&&clearance>0;element.hidden=!visible;
+      if(!visible)return;
+      element.style.transform=`translate3d(${p.x}px,${p.y}px,0) translate(-50%,-100%)`;
+      element.style.opacity=String(Math.min(1,clearance/12));
+    };
+    for(const {point,element} of portMarkers){const p=project(point);p.y-=width<600?72:48;
+      place(element,p,Math.min(p.x-42,width-42-p.x,p.y-120,height-100-p.y,Math.max(width-140-p.x,p.y-180),Math.max(p.x-240,p.y-180)));
+    }
+    for(const {point,element,visible} of siteMarkers){if(!visible){element.hidden=true;continue;}const p=project(point);place(element,p,Math.min(p.x-24,width-24-p.x,p.y-100,height-80-p.y));}
+    const bearing=headingUp?state.motion.heading:0;
+    $('voyage-wind-arrow').style.transform=`rotate(${windFrom+180-bearing}deg)`;$('voyage-needle').style.transform=`rotate(${-bearing}deg)`;
+    $('voyage-north').style.transform=`translate(-50%,-50%) rotate(${-bearing}deg) translateY(var(--north-offset)) rotate(${bearing}deg)`;
+    markersDirty=false;
+  }
   function render(stamp=performance.now()){
     if($('voyage-screen').hidden||document.hidden){lastStamp=0;return;}
-    if(!fit())return;const state=read(),dt=lastStamp?Math.min(.1,Math.max(0,(stamp-lastStamp)/1000)):0;lastStamp=stamp;pose(state);
+    if(!fit())return;const state=read(),dt=lastStamp?Math.min(.1,Math.max(0,(stamp-lastStamp)/1000)):0;lastStamp=stamp;
     if(!document.querySelector('dialog[open]'))time+=dt;
     if(stamp-lastHUD>180||dirty){hud(state);lastHUD=stamp;}
     if(failed||document.querySelector('dialog[open]'))return;
     const poseKey=[state.position.x,state.position.y,state.motion.heading,state.motion.speed,state.ship].join(':');
-    if(reduced.matches&&!dirty&&poseKey===lastPose&&!wake?.active)return;
+    if(reduced.matches&&!dirty&&!markersDirty&&poseKey===lastPose&&!wake?.active)return;
     const interval=1000/(high?60:30);if(!dirty&&stamp-lastDraw<interval-.1)return;
-    lastDraw=stamp-Math.max(0,(stamp-lastDraw)%interval);lastPose=poseKey;updateChunk(state);
+    lastDraw=stamp-Math.max(0,(stamp-lastDraw)%interval);lastPose=poseKey;pose(state);updateChunk(state);
     if(tier!==state.ship){tier=state.ship;ship.root.scale.setScalar(1.5+Math.min(tier,6)*.08);ship.root.userData.tier=tier;
       ship.body.children.filter(m=>m.geometry?.type==='PlaneGeometry'&&m.material?.map).forEach(m=>m.material.color.set(['#fff3d5','#f1e9cc','#f3dab2','#ddd6bc','#f4e5bf','#e7d2aa','#faf0d4'][tier]));}
     const angle=state.motion.heading*Math.PI/180,hullScale=ship.root.scale.x/1.5;ship.update(reduced.matches?0:time,angle,state.motion.speed,reduced.matches);openSea.update(reduced.matches?0:time,camera,ship.root.position,angle,state.motion.speed,hullScale);chunk?.ocean.update(reduced.matches?0:time,camera,ship.root.position,angle,state.motion.speed,hullScale);wake.update(time,ship.root.position,angle,state.motion.speed,reduced.matches,hullScale);
-    renderer.render(scene,camera);draws++;dirty=false;
+    renderer.render(scene,camera);markerFrame(state);draws++;dirty=false;
   }
   function cameraControl(){text('voyage-camera-toggle',headingUp?'시점: 선수 고정':'시점: 북쪽 고정');$('voyage-camera-toggle').setAttribute('aria-label',headingUp?'선수 고정 시점':'북쪽 고정 시점');$('voyage-camera-toggle').setAttribute('aria-pressed',String(headingUp));}
   canvas.addEventListener('pointerdown',e=>{if(e.button===0)press={id:e.pointerId,x:e.clientX,y:e.clientY};});canvas.addEventListener('pointercancel',()=>press=null);

@@ -8,6 +8,7 @@
 .demo-site{position:absolute;transform:translate(-50%,-100%);pointer-events:none;font-size:9px;color:#f2ecd5;text-shadow:0 1px 3px #163e46;text-align:center}
 .demo-site i{display:block;font-style:normal;font-size:21px;line-height:30px}
 .demo-sites{position:absolute;inset:0;pointer-events:none}
+.painted-mode .voyage-port,.painted-mode .demo-site{left:0;top:0;transition:none}
 .demo-quality{margin:8px 0;min-height:44px;font-size:11px}
 @media(max-width:740px){.demo-banner{font-size:11px}.demo-render-note{bottom:88px}}
 @media(max-width:360px){#play-mode-label{display:none}}
