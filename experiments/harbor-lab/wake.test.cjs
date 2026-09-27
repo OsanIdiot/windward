@@ -26,6 +26,13 @@ test('reset and teleport cannot connect distant wake strips',async()=>{
   history.update(.2,{x:200,z:0},0,1);assert.equal(history.samples.length,0);
   history.update(.3,{x:200,z:-1},0,1);assert.equal(history.samples.length,1);history.clear();assert.equal(history.samples.length,0);
 });
+
+test('upgraded hull sizes emit foam at their own stern without moving older foam',async()=>{
+  const {createWakeHistory}=await import('./ocean.js');const history=createWakeHistory();
+  history.update(0,{x:0,z:0},0,1);history.update(.1,{x:0,z:-1},0,1);
+  const first={...history.samples[0]};history.update(.2,{x:0,z:-2},0,1,1.32);
+  assert.deepEqual(history.samples[0],first);assert.equal(history.samples.at(-1).z,-2+6.75*1.32);assert.equal(history.samples.at(-1).hullScale,1.32);
+});
 test('wake mesh uses per-vertex opacity, soft edges and a fixed geometry budget',async()=>{
   const T=await import('./vendor/three.module.min.js'),{createShipWake}=await import('./ocean.js'),scene=new T.Scene();const wake=createShipWake(scene,new T.Texture());
   for(let i=0;i<=600;i++)wake.update(i/30,{x:Math.sin(i/100)*3,z:-i/30*3},.2,.8);

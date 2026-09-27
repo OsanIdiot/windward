@@ -5,6 +5,12 @@ The experiment is not referenced by the production entry point. The Pages workfl
 
 Public preview: https://osanidiot.github.io/windward/lab/
 
+## Integrated Game
+
+The accepted graphics are now also connected to the existing game in a separate
+`/demo/` build. This `/lab/` study retains its original restrictions. See
+[DEMO.md](DEMO.md) for running the integrated game, save isolation and checks.
+
 ## Run
 
 From the Windward directory:
@@ -96,4 +102,7 @@ LICENSE-three.txt  bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272
 
 ## Next Decision
 
-Review the prototype before integrating anything into the game. If the camera and rendering direction are accepted, produce one coherent set of higher-quality buildings, coastal stone/vegetation textures and ship geometry, then validate the same area on actual phones. Do not treat the generated concept as proof of achievable real-time quality.
+Further graphics work is paused at the user's request. The next evaluation is the
+integrated gameplay loop documented in DEMO.md, including actual-phone testing.
+Do not treat the generated concept or desktop viewport checks as proof of
+real-device quality or performance.

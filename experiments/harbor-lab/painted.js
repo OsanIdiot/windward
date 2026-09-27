@@ -64,7 +64,7 @@ export function createPaintedTown(scene,terrain,art){
     if(!footprint(px,pz,sx+1,sz+1,angle))continue;
     buildings.push({x:px,z:pz,y:elevation(px,pz),sx,sz,h,angle,warehouse,n});
   }
-  const towerPoint=buildings.reduce((best,p)=>Math.hypot(p.x,p.z)<Math.hypot(best.x,best.z)?p:best,{x:20,z:-30,y:elevation(20,-30)});
+  const towerPoint=buildings.filter(p=>footprint(p.x,p.z,5.6,5.6,0)).reduce((best,p)=>!best||Math.hypot(p.x,p.z)<Math.hypot(best.x,best.z)?p:best,null);
   for(const house of buildings){if(house===towerPoint)continue;const {x,z,y,sx,sz,h,angle,n,warehouse}=house,r=[0,angle,0];
     const point=(dx,dy,dz)=>[x+dx*Math.cos(angle)+dz*Math.sin(angle),y+dy,z-dx*Math.sin(angle)+dz*Math.cos(angle)];
     const facade=warehouse?art.warehouse:art.facade,facades=[facade,facade,art.wall,art.stone,facade,facade],tint=['#ffffff','#ded2b9','#e3c7b0','#cbd2ba'][Math.floor(n*4)];
@@ -82,6 +82,8 @@ export function createPaintedTown(scene,terrain,art){
   for(let i=0;i<buildings.length;i++){const a=buildings[i],c=buildings.slice(i+1).filter(p=>Math.hypot(p.x-a.x,p.z-a.z)<10).sort((p,q)=>Math.hypot(p.x-a.x,p.z-a.z)-Math.hypot(q.x-a.x,q.z-a.z))[0];if(!c)continue;
     for(let t=0;t<=1;t+=.12){const x=a.x+(c.x-a.x)*t,z=a.z+(c.z-a.z)*t;if(footprint(x,z,1.1,1.1,0))b.box(art.stone,[x,elevation(x,z)+.035,z],[1.05,.06,1.1]);}
   }
+  // Some real port regions have no safe land in this decorative patch.
+  if(towerPoint){
   const {x:tx,z:tz,y:ty}=towerPoint;
   const tower=(mat,x,y,z,sx,sy,sz)=>b.box(mat,[tx+x,ty+y,tz+z],[sx,sy,sz]);
   tower(art.stone,0,.4,0,5.6,.8,5.6);tower(art.wall,0,4.3,0,4.1,8,4.1);
@@ -92,6 +94,7 @@ export function createPaintedTown(scene,terrain,art){
   b.add(roofGeo,art.roof,[tx,ty+10.5,tz],[4,2.1,4]);
   for(let i=0;i<4;i++)tower(art.stone,-2+i*1.34,8.9,2.2,.55,.6,.45);
   b.add(shadowGeo,art.shadow,[tx+.7,ty+.025,tz+1.3],[9,9,1],[-Math.PI/2,0,0]);
+  }
   const crown=new T.IcosahedronGeometry(1,1),trunk=new T.CylinderGeometry(.1,.16,1,5);
   let trees=0;
   for(let i=0;i<700&&trees<115;i++){const x=(noise(i,11)*2-1)*150,z=(noise(i,12)*2-1)*150;if(!isLand(x,z)||coastDistance(x,z)<4||buildings.some(p=>Math.hypot(x-p.x,z-p.z)<5))continue;const y=elevation(x,z),h=2+noise(i,13)*2;
@@ -100,7 +103,7 @@ export function createPaintedTown(scene,terrain,art){
   }
   const rock=new T.DodecahedronGeometry(1,0);let rocks=0;
   for(let i=0;i<1600&&rocks<150;i++){const x=(noise(i,21)*2-1)*130,z=(noise(i,22)*2-1)*130,d=coastDistance(x,z);if(!isLand(x,z)||d<.5||d>5)continue;const r=Math.min(d*.75,.7+noise(i,23)*1.7);b.add(rock,art.stone,[x,.6,z],[r,1+noise(i,24)*2,r*.8],[0,i,0]);rocks++;}
-  b.finish();root.userData.buildings=buildings.length;return new T.Vector3(tx,ty+13,tz);
+  b.finish();root.userData.buildings=buildings.length;return towerPoint?new T.Vector3(towerPoint.x,towerPoint.y+13,towerPoint.z):new T.Vector3();
 }
 
 export function createPaintedShip(scene,art){

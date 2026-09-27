@@ -28,8 +28,8 @@ function waterTexture() {
   return texture;
 }
 
-export function createOcean(scene, depth, extent) {
-  const uniforms = {time:{value:0},depthMap:{value:depth},waterMap:{value:waterTexture()},extent:{value:extent},eye:{value:new T.Vector3()},ship:{value:new T.Vector2()},direction:{value:new T.Vector2(0,-1)},speed:{value:0}};
+export function createOcean(scene, depth, extent,origin={x:0,z:0},waterMap=waterTexture()) {
+  const uniforms = {time:{value:0},depthMap:{value:depth},waterMap:{value:waterMap},depthOrigin:{value:new T.Vector2(origin.x,origin.z)},extent:{value:extent},eye:{value:new T.Vector3()},ship:{value:new T.Vector2()},direction:{value:new T.Vector2(0,-1)},speed:{value:0},hullScale:{value:1}};
   const material = new T.ShaderMaterial({
     uniforms,
     vertexShader:`varying vec3 worldPosition;
@@ -37,13 +37,13 @@ export function createOcean(scene, depth, extent) {
     fragmentShader:`
       precision highp float;
       varying vec3 worldPosition;
-      uniform float time,extent,speed;
+      uniform float time,extent,speed,hullScale;
       uniform sampler2D depthMap,waterMap;
       uniform vec3 eye;
-      uniform vec2 ship,direction;
+      uniform vec2 ship,direction,depthOrigin;
       void main(){
         vec2 p=worldPosition.xz;
-        vec2 uv=(p+extent)/(2.*extent);
+        vec2 uv=(p-depthOrigin+extent)/(2.*extent);
         float distanceToShore=texture2D(depthMap,uv).r*48.;
         vec3 waves=texture2D(waterMap,p*.045+vec2(time*.003,-time*.002)).rgb;
         vec3 crossWaves=texture2D(waterMap,p*.071+vec2(-time*.002,time*.003)).rgb;
@@ -61,6 +61,7 @@ export function createOcean(scene, depth, extent) {
         float foam=(1.-smoothstep(.1,4.,distanceToShore))*smoothstep(.18,.9,swellLine)*(.45+crossWaves.r*.4);
         vec2 relative=p-ship;float along=dot(relative,direction),side=dot(relative,vec2(-direction.y,direction.x));
         // Follow the 1.5-scale hull: the prow is 7.95 units ahead of its origin.
+        along/=hullScale;side/=hullScale;
         float behindBow=8.05-along;
         float spread=sqrt(max(behindBow,0.))*1.15;
         float bowEdge=1.-smoothstep(.12,.52,abs(abs(side)-spread));
@@ -75,10 +76,10 @@ export function createOcean(scene, depth, extent) {
       }`,
   });
   const mesh = new T.Mesh(new T.PlaneGeometry(extent*2,extent*2),material);
-  mesh.rotation.x=-Math.PI/2;scene.add(mesh);
-  return {update(time, camera, position, heading, speed) {
+  mesh.rotation.x=-Math.PI/2;mesh.position.set(origin.x,0,origin.z);scene.add(mesh);
+  return {update(time, camera, position, heading, speed, hullScale=1) {
     uniforms.time.value=time;uniforms.eye.value.copy(camera.position);uniforms.ship.value.set(position.x,position.z);
-    uniforms.direction.value.set(Math.sin(heading),-Math.cos(heading));uniforms.speed.value=speed;
+    uniforms.direction.value.set(Math.sin(heading),-Math.cos(heading));uniforms.speed.value=speed;uniforms.hullScale.value=hullScale;
   }, material};
 }
 
@@ -92,14 +93,14 @@ export function createWakeHistory(){
   return {
     get samples(){return samples;},
     clear(){samples=[];lastEmission=-Infinity;lastPosition=null;},
-    update(time,position,heading,speed){
+    update(time,position,heading,speed,hullScale=1){
       samples=samples.filter(p=>time-p.time<WAKE_LIFETIME);
       const moved=lastPosition?Math.hypot(position.x-lastPosition.x,position.z-lastPosition.z):0;
       if(moved>20){samples=[];lastEmission=-Infinity;}
       // At most ten samples/second keeps the complete fade inside the fixed buffer.
       if(lastPosition&&moved>.0001&&moved<=20&&speed>.015&&time-lastEmission>=.1-1e-6){
         const dx=Math.sin(heading),dz=-Math.cos(heading);
-        samples.push({x:position.x-dx*6.75,z:position.z-dz*6.75,dx,dz,time,speed:clamp01(speed)});lastEmission=time;
+        samples.push({x:position.x-dx*6.75*hullScale,z:position.z-dz*6.75*hullScale,dx,dz,time,speed:clamp01(speed),hullScale});lastEmission=time;
       }
       lastPosition={x:position.x,z:position.z};return samples;
     }
@@ -130,9 +131,9 @@ export function createShipWake(scene,waterMap){
   return {
     get active(){return history.samples.length>0;},
     clear(){history.clear();geometry.setDrawRange(0,0);},
-    update(time,position,heading,speed,reduced=false){
-      const samples=history.update(time,position,heading,speed);let count=0;
-      const point=(p,side)=>{const age=time-p.time,width=1.65+age*.32;return {x:p.x-p.dz*width*side,z:p.z+p.dx*width*side,side,alpha:wakeOpacity(age,p.speed)};};
+    update(time,position,heading,speed,reduced=false,hullScale=1){
+      const samples=history.update(time,position,heading,speed,hullScale);let count=0;
+      const point=(p,side)=>{const age=time-p.time,width=1.65*p.hullScale+age*.32;return {x:p.x-p.dz*width*side,z:p.z+p.dx*width*side,side,alpha:wakeOpacity(age,p.speed)};};
       for(let i=1;i<samples.length;i++){
         const a=samples[i-1],b=samples[i];
         if(b.time-a.time>.45||Math.hypot(b.x-a.x,b.z-a.z)>12)continue;

@@ -2,8 +2,8 @@ import * as T from './vendor/three.module.min.js';
 import {createPaintedTown} from './painted.js';
 export const noise=(x,y)=>{const n=Math.sin(x*12.9898+y*78.233)*43758.5453;return n-Math.floor(n);};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
-export function createWorld(scene,M,art) {
-  const extent=260,segments=[];
+export function createWorld(scene,M,art,options={}) {
+  const extent=options.extent||260,segments=[];
   const rings=M.E.N.G.rings.map(r=>r.map(([x,y])=>M.local({x,y})));
   for(const ring of rings) for(let i=0;i<ring.length;i++){
     const a=ring[i],b=ring[(i+1)%ring.length];
@@ -54,7 +54,14 @@ export function createWorld(scene,M,art) {
   for(let z=0;z<count;z++)for(let x=0;x<count;x++){const px=-extent+x*step,pz=-extent+z*step;points.push(px,elevation(px,pz),pz);uv.push(x/(count-1),z/(count-1));landFlags.push(isLand(px,pz));}
   for(let z=0;z<count-1;z++)for(let x=0;x<count-1;x++){const a=z*count+x,b=a+1,c=a+count,d=c+1;if(landFlags[a]&&landFlags[c]&&landFlags[b])indices.push(a,c,b);if(landFlags[b]&&landFlags[c]&&landFlags[d])indices.push(b,c,d);}
   const terrain=new T.BufferGeometry();terrain.setAttribute('position',new T.Float32BufferAttribute(points,3));terrain.setAttribute('uv',new T.Float32BufferAttribute(uv,2));terrain.setIndex(indices);terrain.computeVertexNormals();const terrainMesh=new T.Mesh(terrain,surfaceMat);terrainMesh.receiveShadow=true;scene.add(terrainMesh);
-  if(art){const portPosition=createPaintedTown(scene,{isLand,coastDistance,elevation},art);return {extent,depth,coastDistance,isLand,elevation,portPosition,materials:art};}
+  if(art){
+    let portPosition=null;
+    if(options.town!==false){
+      const center=options.townCenter||{x:0,z:0},town=new T.Group();town.position.set(center.x,0,center.z);scene.add(town);
+      portPosition=createPaintedTown(town,{isLand:(x,z)=>isLand(x+center.x,z+center.z),coastDistance:(x,z)=>coastDistance(x+center.x,z+center.z),elevation:(x,z)=>elevation(x+center.x,z+center.z)},art).add(town.position);
+    }
+    return {extent,depth,coastDistance,isLand,elevation,portPosition,materials:art};
+  }
   const material=(color,map)=>new T.MeshStandardMaterial({color,map,roughness:.86});
   const wall=material('#fff7e4',texture('wall')),roof=material('#e5c7ad',texture('roof')),dark=material('#334743'),wood=material('#c8a26e',texture('wood')),stone=material('#eee1c5',texture('wall')),leaf=material('#637c49');
   const batches=[];

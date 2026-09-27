@@ -33,3 +33,9 @@ test('painted source asset ships locally at a bounded size',()=>{
   assert.match(fs.readFileSync(path.join(__dirname,'server.cjs'),'utf8'),/painted-materials\.webp/);
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'painted.js'),'utf8'),/localStorage|sessionStorage|indexedDB/);
 });
+
+test('streamed sea-only patches cannot create a floating fallback watchtower',async()=>{
+  const {T,P,art}=await fixture(),scene=new T.Scene();
+  P.createPaintedTown(scene,{isLand:()=>false,coastDistance:()=>20,elevation:()=>2},art);
+  assert.equal(scene.children[0].userData.buildings,0);assert.equal(scene.children[0].children.length,0);
+});
