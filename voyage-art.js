@@ -57,9 +57,11 @@
   function sailTrim(heading, windFrom, strength) {
     const rel = (((windFrom - heading) % 360) + 540) % 360 - 180, a = Math.abs(rel), side = rel >= 0 ? 1 : -1;
     const brace = a < 40 ? 50 * smooth(a / 40) : a < 90 ? lerp(50, 40, (a - 40) / 50) : a < 135 ? lerp(40, 18, (a - 90) / 45) : lerp(18, 0, (a - 135) / 45);
-    const luff = a < 30 ? 1 : a < 45 ? 1 - (a - 30) / 15 : 0;
-    const bow = a < 110 ? 0 : a > 150 ? 1 : (a - 110) / 40;
-    return { rel, side, brace: -side * brace * Math.PI / 180, luff, bow, heel: Math.sin(rel * Math.PI / 180) * (.3 + .7 * strength) * (1 - luff) };
+    const luff = a < 35 ? 1 : a < 55 ? 1 - (a - 35) / 20 : 0;
+    // push: -0.85 head to wind (the wind hits the front of the cloth and backs it, driving the ship astern), 0 at
+    // the edge of the no-go zone, +0.9 on a beam wind and up to +1.3 running (the wind fills it toward the bow).
+    const push = a < 45 ? -.85 * (1 - smooth(a / 45)) : a < 90 ? .9 * smooth((a - 45) / 45) : .9 + .4 * smooth((a - 90) / 90);
+    return { rel, side, brace: -side * brace * Math.PI / 180, luff, push, heel: Math.sin(rel * Math.PI / 180) * (.3 + .7 * strength) * (1 - luff) };
   }
   // Smooth, optionally tileable value noise for baked textures.
   const hash2 = (x, y) => { let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
@@ -148,20 +150,21 @@
       }
       return Math.max(.1, scale);
     }
-    // Sail cloth in yard-local coordinates, modelled on a real square-rigger photographed from the side: the wind
-    // pushes the cloth toward the BOW into a "(" belly, while the lower corners (clews) and loose edges trail
-    // back toward the stern. The yard is the straight chord at y = 0. Wind astern fills the sail most; head to wind
-    // (luff) the belly collapses and the cloth ripples. sailDepth is the foot curve's centre (negative = forward).
+    // Sail cloth in yard-local coordinates, modelled on a real square-rigger: the yard is the straight chord at y = 0.
+    // With the wind behind or beside the ship the cloth bellies toward the BOW into a "(" while the clews trail
+    // astern. Head to wind the sail is backed instead: the wind hits its front, the belly bows AFT, and it flogs,
+    // which is the picture of a ship being held back. push (from sailTrim) blends smoothly between the two.
+    // sailDepth is the foot curve's centre in yard space (negative = forward of the yard, positive = aft).
     const sailEnd = d => d * .28;
-    function sailDepth(d, belly, run, luff) {
+    function sailDepth(d, belly, push) {
       const e = sailEnd(d);
-      return e - (e + (d * .65 + belly) * (1 + run * .3)) * (1 - luff * .7);
+      return e - (e + d * .65 + belly) * push;
     }
-    function sailPath(w, d, belly, run, luff, time, phase) {
-      const p = new Path2D(), n = 14, e = sailEnd(d), mid = sailDepth(d, belly, run, luff) * (1 + .06 * Math.sin(time * 3 + phase));
+    function sailPath(w, d, belly, push, luff, time, phase) {
+      const p = new Path2D(), n = 14, e = sailEnd(d), mid = sailDepth(d, belly, push) * (1 + .06 * Math.sin(time * 3 + phase));
       p.moveTo(-w, 0); p.lineTo(w, 0);
       for (let i = n; i >= 0; i--) {
-        const u = i / n, ripple = Math.sin(time * 7 - u * 9 + phase) * (.35 + luff * 1.5);
+        const u = i / n, ripple = Math.sin(time * 7 - u * 9 + phase) * (.35 + luff * 1.8);
         p.lineTo(w * (2 * u - 1) * .93, e + (mid - e) * Math.sin(u * Math.PI) + ripple);
       }
       p.closePath(); return p;
@@ -203,10 +206,10 @@
       for (const [sy, w] of sails) {
         const flutter = reduced ? 0 : Math.sin(time * 2 + sy) * (.6 + wind.strength * 1.4 + Math.abs(bank)) * (1 + tr.luff * 2);
         const belly = Math.max(0, (3 + speed * 3) * (1 - tr.luff * .85) + flutter * .7), d = 15;
-        const sail = sailPath(w, d, belly, tr.bow, tr.luff, time, sy);
+        const sail = sailPath(w, d, belly, tr.push, tr.luff, time, sy);
         ctx.save(); ctx.translate(lean, sy); ctx.rotate(tr.brace + (reduced ? 0 : tr.luff * Math.sin(time * 7 + sy) * .12));
         ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#052f4a2e'; ctx.fill(sail); ctx.restore();
-        const mid = sailDepth(d, belly, tr.bow, tr.luff), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 0, Math.max(0, mid) + 2);
+        const mid = sailDepth(d, belly, tr.push), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 0, Math.max(0, mid) + 2);
         cloth.addColorStop(0, '#fffaf0'); cloth.addColorStop(.55, '#fff4da'); cloth.addColorStop(1, '#efdcb2');
         ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = edge; ctx.lineWidth = 2.4; ctx.stroke(sail);
         line(0, 1, 0, mid - (mid > 0 ? 1 : -1), '#e0cfa6', 1.4);
@@ -255,10 +258,10 @@
       for (const [my, w, d] of masts) {
         const flutter = reduced ? 0 : Math.sin(time * 2 + my) * (.5 + wind.strength * 1.2 + Math.abs(bank)) * (1 + tr.luff * 2);
         const belly = Math.max(0, (d * .3 + speed * 3.5) * (1 - tr.luff * .85) + flutter), depth = d * .75;
-        const sail = sailPath(w, depth, belly, tr.bow, tr.luff, time, my);
+        const sail = sailPath(w, depth, belly, tr.push, tr.luff, time, my);
         ctx.save(); ctx.translate(lean, my); ctx.rotate(tr.brace + (reduced ? 0 : tr.luff * Math.sin(time * 7 + my) * .1));
         ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#2b2a2640'; ctx.fill(sail); ctx.restore();
-        const mid = sailDepth(depth, belly, tr.bow, tr.luff), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 3, Math.max(0, mid) + 2);
+        const mid = sailDepth(depth, belly, tr.push), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 3, Math.max(0, mid) + 2);
         cloth.addColorStop(0, '#d9ccaa'); cloth.addColorStop(.3, '#fff8df'); cloth.addColorStop(.7, '#f1e2bb'); cloth.addColorStop(1, '#a39170');
         ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = '#b6a27a'; ctx.lineWidth = .7; ctx.stroke(sail);
         ctx.save(); ctx.clip(sail);
@@ -427,7 +430,7 @@
       ctx.strokeStyle = '#5a4230'; ctx.lineWidth = .35; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(0, 3.6); ctx.stroke();
       for (let n = 0; n < m.sails + 1; n++) {
         const sy = -3.4 + n * 3.1, half = 4.8 - n * .5, flutter = reduced ? 0 : Math.sin(time * 2 + n + m.phase * 9) * .25;
-        const k = .26, sail = sailPath(half / k, 7, Math.max(0, 5 * (1 - tr.luff) + flutter * 3), tr.bow, tr.luff, time, n + m.phase * 9);
+        const k = .26, sail = sailPath(half / k, 7, Math.max(0, 5 + flutter * 3), tr.push, tr.luff, time, n + m.phase * 9);
         ctx.save(); ctx.translate(0, sy); ctx.rotate(tr.brace); ctx.scale(k, k);
         ctx.fillStyle = '#fbf2d6'; ctx.strokeStyle = '#b9a47c'; ctx.lineWidth = .9; ctx.fill(sail); ctx.stroke(sail);
         ctx.restore();
