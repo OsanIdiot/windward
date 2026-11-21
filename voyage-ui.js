@@ -188,7 +188,8 @@
       ctx.drawImage(scenery,0,0,N.G.width,N.G.height);
       harbor(state);
       art.shadows({left,top,right,bottom},time);
-      ctx.save();ctx.clip(seaMask,'evenodd');wake(stamp);ctx.restore();
+      ctx.save();ctx.clip(seaMask,'evenodd');art.life({left,top,right,bottom},time,wind,N.isSea,'sea');wake(stamp);ctx.restore();
+      art.life({left,top,right,bottom},time,wind,N.isSea,'air');
       ctx.restore();
       const visible=renderPorts(state);
       for(const {x,y} of visible){ctx.save();ctx.translate(x,y);ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
@@ -231,6 +232,7 @@
         ctx.restore();
       }
       ship(time,moving,state.ship,state.motion?.speed??1,wind);
+      art.atmosphere(width,height,state.day+state.seaProgress);
       if(stamp-lastHUD>100||!dt){renderHUD(state,visible,wind);renderMini(state);lastHUD=stamp;}
     }
     canvas.addEventListener('pointerdown',event=>{if(event.button===0)press={id:event.pointerId,x:event.clientX,y:event.clientY};});

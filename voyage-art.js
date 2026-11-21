@@ -2,6 +2,56 @@
   'use strict';
   const TAU = Math.PI * 2;
   const noise = (x, y) => { const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return n - Math.floor(n); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = t => t * t * (3 - 2 * t);
+  // Ambient life and mood are pure functions of fixed world cells and the game clock.
+  // They never read or write saves, spend time, or change navigation; they only decorate.
+  const CELL = 110;
+  const rnd = (i, j, k) => noise(i * 7.31 + k * 1.93 + .17, j * 3.77 + k * 2.41 + .59);
+  function cell(i, j, isSea) {
+    const r = k => rnd(i, j, k);
+    const at = k => ({ x: (i + .12 + .76 * r(k)) * CELL, y: (j + .12 + .76 * r(k + 1)) * CELL });
+    const clear = (p, a, length) => [-1, -.5, 0, .5, 1].every(f => isSea({ x: p.x + Math.sin(a) * length / 2 * f, y: p.y - Math.cos(a) * length / 2 * f }));
+    // Try several headings so narrow seas can still host a pass that stays entirely on water.
+    const heading = (p, length, k) => { for (let t = 0; t < 8; t++) { const a = r(k + t * .37) * TAU; if (clear(p, a, length)) return a; } return null; };
+    const out = { ships: [], dolphins: [], gulls: [], flotsam: [], fish: [] };
+    if (r(1) < .3) {
+      const p = at(2), a = heading(p, 90, 4);
+      if (a !== null) out.ships.push({ p, a, len: 90, speed: .8 + r(5) * .5, phase: r(6), size: 1 + r(7) * .25, sails: r(8) > .5 ? 2 : 1 });
+    }
+    if (r(10) < .28) {
+      const p = at(11), a = heading(p, 60, 13);
+      if (a !== null) out.dolphins.push({ p, a, len: 60, speed: 2.2, phase: r(14), n: 3 + Math.floor(r(15) * 3) });
+    }
+    if (r(20) < .26) out.gulls.push({ p: at(21), a: r(23) * TAU, len: 130, speed: 3 + r(24), phase: r(25), n: 3 + Math.floor(r(26) * 3) });
+    for (const q of [0, 1]) {
+      if (r(30 + q * 5) >= (q ? .12 : .34)) continue;
+      const p = at(31 + q * 5);
+      if (clear(p, 0, 12) && clear(p, 1.57, 12)) out.flotsam.push({ p, kind: Math.floor(r(33 + q * 5) * 3), a: r(34 + q * 5) * TAU, phase: r(32 + q * 5) });
+    }
+    if (r(50) < .3) {
+      const p = at(51);
+      if (clear(p, 0, 10) && clear(p, 1.57, 10)) out.fish.push({ p, a: r(53) * TAU, period: 12 + r(54) * 10, phase: r(55) });
+    }
+    return out;
+  }
+  // Soft light by game day: dawn, morning, noon, golden afternoon, dusk, night, repeating every 30 days.
+  const TONES = [[0, 255, 196, 160, .1], [.16, 255, 236, 200, .06], [.38, 255, 255, 255, 0], [.6, 255, 218, 150, .07], [.76, 244, 150, 126, .14], [.9, 28, 52, 104, .17], [1, 255, 196, 160, .1]];
+  function tone(gameTime) {
+    const t = ((gameTime / 30) % 1 + 1) % 1;
+    for (let n = 1; n < TONES.length; n++) {
+      if (t > TONES[n][0]) continue;
+      const a = TONES[n - 1], b = TONES[n], f = smooth((t - a[0]) / (b[0] - a[0]));
+      return [lerp(a[1], b[1], f), lerp(a[2], b[2], f), lerp(a[3], b[3], f), lerp(a[4], b[4], f)];
+    }
+    return TONES[0].slice(1);
+  }
+  // Occasional gentle sea mist, 0 (clear) to 1 (hazy).
+  function haze(gameTime) {
+    const x = gameTime / 14, i = Math.floor(x), f = smooth(x - i);
+    return Math.max(0, Math.min(1, (lerp(noise(i, 3.1), noise(i + 1, 3.1), f) - .62) / .28));
+  }
+  const ambient = { CELL, cell, tone, haze };
   root.createVoyageArt = function (ctx) {
     const sprite = new Image();
     sprite.src = 'assets/merchant-caravel.webp?v=0.1.10';
@@ -170,6 +220,135 @@
       line(1, -62, 1, -51, '#e8cb8c', .8);
       ctx.restore(); ctx.restore();
     }
-    return { water, shadows, ship, shipScale };
+    // ---- Ambient life: dolphins, gulls, passing ships, flotsam and leaping fish (decoration only) ----
+    const cache = new Map();
+    const cellAt = (i, j, isSea) => {
+      const key = i + ',' + j;
+      let c = cache.get(key);
+      if (!c) { if (cache.size > 600) cache.clear(); c = cell(i, j, isSea); cache.set(key, c); }
+      return c;
+    };
+    // Position along a straight pass; fades in and out at both ends so nothing pops.
+    const along = (m, time) => {
+      const u = ((time * m.speed / m.len + m.phase) % 1 + 1) % 1, d = (u - .5) * m.len;
+      return { x: m.p.x + Math.sin(m.a) * d, y: m.p.y - Math.cos(m.a) * d, fade: Math.min(1, u / .12, (1 - u) / .12) };
+    };
+    function ring(x, y, radius, alpha) {
+      ctx.strokeStyle = `rgba(230,255,246,${alpha})`; ctx.lineWidth = .28;
+      ctx.beginPath(); ctx.ellipse(x, y, radius, radius * .72, 0, 0, TAU); ctx.stroke();
+    }
+    function dolphin(x, y, a, up, alpha) {
+      ring(x, y, 2.2 + (1 - up) * 3, .4 * alpha * up);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(1.4, 1.4);
+      ctx.fillStyle = `rgba(2,42,62,${.16 * alpha * up})`; ctx.beginPath(); ctx.ellipse(1.1, 1.3, .9, 2.3, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(38,76,102,${.97 * alpha * Math.min(1, up * 1.6)})`;
+      ctx.beginPath(); ctx.moveTo(0, -2.7); ctx.bezierCurveTo(1.15, -1.9, 1.25, .5, .45, 2.1); ctx.lineTo(-.45, 2.1); ctx.bezierCurveTo(-1.25, .5, -1.15, -1.9, 0, -2.7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, 1.9); ctx.lineTo(1.5, 3.1); ctx.lineTo(0, 2.7); ctx.lineTo(-1.5, 3.1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(.9, -.2); ctx.lineTo(1.9, .7); ctx.lineTo(.8, .5); ctx.moveTo(-.9, -.2); ctx.lineTo(-1.9, .7); ctx.lineTo(-.8, .5); ctx.fill();
+      ctx.fillStyle = `rgba(214,236,236,${.5 * alpha * up})`; ctx.beginPath(); ctx.ellipse(0, -.1, .42, 1.5, 0, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    function gull(x, y, a, flap, alpha) {
+      ctx.save(); ctx.translate(x + 2.4, y + 3.6); ctx.rotate(a);
+      ctx.fillStyle = `rgba(3,43,66,${.11 * alpha})`; ctx.beginPath(); ctx.ellipse(0, 0, 2.3, .7, 0, 0, TAU); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+      const w = 2.6 + flap * .3;
+      ctx.fillStyle = `rgba(251,248,234,${alpha})`; ctx.strokeStyle = `rgba(120,128,128,${.55 * alpha})`; ctx.lineWidth = .25;
+      for (const side of [-1, 1]) {
+        ctx.beginPath(); ctx.moveTo(0, -.3); ctx.quadraticCurveTo(side * w * .5, -1.3 - flap * .5, side * w, .3 + flap * 1.1); ctx.quadraticCurveTo(side * w * .5, .2, 0, .9); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.ellipse(0, .1, .55, 1.1, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(224,150,70,${alpha})`; ctx.beginPath(); ctx.arc(0, -1.25, .3, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    function passingShip(m, x, y, fade, time, wind) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(m.a); ctx.scale(m.size, m.size); ctx.globalAlpha = fade;
+      ctx.strokeStyle = 'rgba(236,255,245,.3)'; ctx.lineWidth = .4; ctx.lineCap = 'round';
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(side * 2.4, 3.4); ctx.quadraticCurveTo(side * 3.6, 6.5, side * (5.2 + Math.sin(time * 2) * .25), 10); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(236,255,245,.16)'; ctx.beginPath(); ctx.moveTo(-1.6, 6.4); ctx.lineTo(1.6, 6.4); ctx.lineTo(.5, 13); ctx.lineTo(-.5, 13); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(2,42,62,.2)'; ctx.beginPath(); ctx.ellipse(1.1, 1.3, 3.4, 7.6, 0, 0, TAU); ctx.fill();
+      const hullPath = new Path2D('M0 -7 C2.6 -5 3.5 -1.5 3.2 2 Q3 5 1.8 6.5 L-1.8 6.5 Q-3 5 -3.2 2 C-3.5 -1.5 -2.6 -5 0 -7Z');
+      ctx.fillStyle = '#7d5638'; ctx.fill(hullPath); ctx.strokeStyle = '#d2a468'; ctx.lineWidth = .4; ctx.stroke(hullPath);
+      ctx.fillStyle = '#d9ae70'; ctx.beginPath(); ctx.moveTo(0, -5.6); ctx.bezierCurveTo(1.9, -4, 2.5, -1, 2.3, 2); ctx.lineTo(-2.3, 2); ctx.bezierCurveTo(-2.5, -1, -1.9, -4, 0, -5.6); ctx.fill();
+      const relative = (((wind.from - m.a * 180 / Math.PI) % 360) + 360) % 360, lean = relative < 180 ? -1 : 1;
+      ctx.strokeStyle = '#5a4230'; ctx.lineWidth = .35; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(0, 3.6); ctx.stroke();
+      for (let n = 0; n < m.sails + 1; n++) {
+        const sy = -3.4 + n * 3.1, half = 4.8 - n * .5, flutter = Math.sin(time * 2 + n + m.phase * 9) * .25;
+        ctx.fillStyle = '#fbf2d6'; ctx.strokeStyle = '#b9a47c'; ctx.lineWidth = .25;
+        ctx.beginPath(); ctx.moveTo(-half, sy); ctx.quadraticCurveTo(lean * .5, sy - 1.3 + flutter, half, sy); ctx.lineTo(half - .7, sy + 1.5); ctx.quadraticCurveTo(lean * .5, sy + 2.9 + flutter, -half + .7, sy + 1.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.fillStyle = '#a64e35'; ctx.beginPath(); ctx.moveTo(0, -6.2); ctx.lineTo(1.9 + Math.sin(time * 3) * .3, -5.7); ctx.lineTo(0, -5.1); ctx.fill();
+      ctx.restore();
+    }
+    function flotsam(m, time) {
+      const x = m.p.x + Math.sin(time * .05 + m.phase * TAU) * 6, y = m.p.y + Math.cos(time * .043 + m.phase * 5) * 5, bob = Math.sin(time * 1.3 + m.phase * 9) * .25;
+      ring(x, y, 2.2 + bob, .22);
+      ctx.save(); ctx.translate(x, y + bob); ctx.rotate(m.a); ctx.lineWidth = .28;
+      if (m.kind === 0) {
+        ctx.fillStyle = '#8a6240'; ctx.strokeStyle = '#4d3a29'; ctx.beginPath(); ctx.arc(0, 0, .95, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, .5, 0, TAU); ctx.stroke();
+      } else if (m.kind === 1) {
+        ctx.fillStyle = '#9a7a52'; ctx.fillRect(-2, -.35, 4, .7); ctx.fillRect(-1, .9, 2.4, .6);
+      } else {
+        ctx.fillStyle = '#a3794a'; ctx.strokeStyle = '#5b4430'; ctx.fillRect(-.8, -.8, 1.6, 1.6); ctx.strokeRect(-.8, -.8, 1.6, 1.6);
+        ctx.beginPath(); ctx.moveTo(-.8, -.8); ctx.lineTo(.8, .8); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function fish(m, time) {
+      const c = ((time / m.period + m.phase) % 1 + 1) % 1;
+      if (c > .4) return;
+      if (c > .06) ring(m.p.x, m.p.y, (c - .06) / .34 * 6, .3 * (1 - (c - .06) / .34));
+      if (c > .1) return;
+      const u = c / .1, lift = Math.sin(u * Math.PI);
+      ctx.save(); ctx.translate(m.p.x + Math.sin(m.a) * (u - .5) * 6, m.p.y - Math.cos(m.a) * (u - .5) * 6 - lift * 2.2); ctx.rotate(m.a + (u - .5) * .9);
+      ctx.fillStyle = '#d7e6e6'; ctx.strokeStyle = '#7d9aa0'; ctx.lineWidth = .2;
+      ctx.beginPath(); ctx.ellipse(0, 0, .5 * (1 + lift * .3), 1.25 * (1 + lift * .3), 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 1.1); ctx.lineTo(.6, 1.9); ctx.lineTo(-.6, 1.9); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    // layer 'sea' is drawn inside the sea mask; layer 'air' (gulls) may fly over land.
+    function life(bounds, time, wind, isSea, layer) {
+      const margin = CELL * .65;
+      for (let i = Math.floor((bounds.left - margin) / CELL); i <= Math.floor((bounds.right + margin) / CELL); i++) {
+        for (let j = Math.floor((bounds.top - margin) / CELL); j <= Math.floor((bounds.bottom + margin) / CELL); j++) {
+          const c = cellAt(i, j, isSea);
+          if (layer === 'air') {
+            for (const m of c.gulls) {
+              const p = along(m, time);
+              for (let k = 0; k < m.n; k++) {
+                const back = k * 3.2, lateral = k ? (k % 2 ? 2.4 : -2.4) : 0;
+                gull(p.x - Math.sin(m.a) * back + Math.cos(m.a) * lateral, p.y + Math.cos(m.a) * back + Math.sin(m.a) * lateral, m.a, Math.sin(time * 8 + k * 1.7 + m.phase * 9), p.fade);
+              }
+            }
+            continue;
+          }
+          for (const m of c.fish) fish(m, time);
+          for (const m of c.flotsam) flotsam(m, time);
+          for (const m of c.dolphins) {
+            const p = along(m, time);
+            for (let k = 0; k < m.n; k++) {
+              const side = k - (m.n - 1) / 2, s = ((time * .5 + m.phase * 3 + k * .21) % 1 + 1) % 1, up = s < .4 ? Math.sin(s / .4 * Math.PI) : 0;
+              if (up < .03) continue;
+              dolphin(p.x + Math.cos(m.a) * side * 3.6 + Math.sin(m.a) * (k % 2) * 2.4, p.y + Math.sin(m.a) * side * 3.6 - Math.cos(m.a) * (k % 2) * 2.4, m.a, up, p.fade);
+            }
+          }
+          for (const m of c.ships) { const p = along(m, time); passingShip(m, p.x, p.y, p.fade, time, wind); }
+        }
+      }
+    }
+    // Soft screen-space light and occasional mist over the finished scene.
+    function atmosphere(width, height, gameTime) {
+      const [r, g, b, a] = tone(gameTime), h = haze(gameTime);
+      if (a > .004) { ctx.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a.toFixed(3)})`; ctx.fillRect(0, 0, width, height); }
+      if (h > .01) {
+        const cx = width / 2, cy = height * .58, mist = ctx.createRadialGradient(cx, cy, Math.min(width, height) * .25, cx, cy, Math.max(width, height) * .75);
+        mist.addColorStop(0, `rgba(226,240,238,${(h * .04).toFixed(3)})`); mist.addColorStop(1, `rgba(226,240,238,${(h * .22).toFixed(3)})`);
+        ctx.fillStyle = mist; ctx.fillRect(0, 0, width, height);
+      }
+    }
+    return { water, shadows, ship, shipScale, life, atmosphere };
   };
-})(window);
+  root.VoyageAmbient = ambient;
+  if (typeof module !== 'undefined' && module.exports) module.exports = ambient;
+})(typeof window !== 'undefined' ? window : globalThis);

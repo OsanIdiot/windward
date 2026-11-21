@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run game tests
-        run: node --test engine.test.cjs navigation.test.cjs braking.test.cjs voyage-camera.test.cjs audio-assets.test.cjs audio-volume.test.cjs sea-discoveries.test.cjs wind.test.cjs rumors.test.cjs market-events.test.cjs visual-assets.test.cjs
+        run: node --test engine.test.cjs navigation.test.cjs braking.test.cjs voyage-camera.test.cjs audio-assets.test.cjs audio-volume.test.cjs sea-discoveries.test.cjs wind.test.cjs rumors.test.cjs market-events.test.cjs visual-assets.test.cjs ambient.test.cjs
       - name: Run isolated preview tests
         run: node --test experiments/harbor-lab/model.test.cjs experiments/harbor-lab/painted.test.cjs experiments/harbor-lab/wake.test.cjs experiments/harbor-lab/package.test.cjs experiments/harbor-lab/demo-package.test.cjs experiments/harbor-lab/terrain.test.cjs
       - name: Configure Pages
