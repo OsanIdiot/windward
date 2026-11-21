@@ -6,7 +6,7 @@ const delta = (a, b) => (a - b + 540) % 360 - 180;
 
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
-  const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?v=32', errors = [];
+  const url = process.env.BASE_URL || 'http://127.0.0.1:4173/?ship=painted&v=32', errors = [];
   try {
     for (const width of [1280, 390, 320]) {
       const mobile = width < 500;

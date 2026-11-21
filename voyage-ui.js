@@ -58,15 +58,18 @@
     let trail = [], previous = null, press = null, lastHUD = 0, bank = 0, animationTime = 0;
     let captionRight = 0, captionBottom = 0;
     let headingUp = true;
-    // Ship look for comparison: ?ship=cute | real | painted (remembered in this browser).
-    let shipStyle = 'painted';
-    try {
-      const asked = new URLSearchParams(location.search).get('ship');
-      if (['cute', 'real', 'painted'].includes(asked)) localStorage.setItem('windward-ship', asked);
-      const saved = localStorage.getItem('windward-ship');
-      if (['cute', 'real', 'painted'].includes(saved)) shipStyle = saved;
-    } catch (_) {}
     try { headingUp = localStorage.getItem('windward-camera') !== 'north'; } catch (_) {}
+    // Two complete looks for the sailing screen: 'cute' (chart-like) and 'real'. ?look=real|cute, remembered per browser.
+    let look = 'cute';
+    try {
+      const asked = new URLSearchParams(location.search).get('look');
+      if (['cute', 'real'].includes(asked)) localStorage.setItem('windward-look', asked);
+      const saved = localStorage.getItem('windward-look');
+      if (['cute', 'real'].includes(saved)) look = saved;
+    } catch (_) {}
+    const legacyShip = new URLSearchParams(location.search).get('ship') === 'painted' ? 'painted' : null;
+    let realLandCanvas = null;
+    const realLand = () => realLandCanvas || (realLandCanvas = art.realTerrain(land, seaMask, N.G.width, N.G.height, terrainRatio));
     const cameraBearing = () => headingUp ? heading : 0;
     const cameraView = () => ({ x: cx, y: cy, zoom: scale, bearing: cameraBearing() });
     const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
@@ -104,6 +107,17 @@
       }
       ctx.restore();
     }
+    function harborReal(state) {
+      if (!shore || N.distance(state.position, lisbon) > 210) return;
+      ctx.save(); ctx.clip(land, 'evenodd');
+      const roofs = ['#c8714b', '#b65f3b', '#dba37a', '#e8dfcb', '#a9563a'];
+      for (const p of town) {
+        ctx.fillStyle = '#2a3b2f55'; ctx.fillRect(p.x + .6, p.y + .6, 3.2, 3.2);
+        ctx.fillStyle = roofs[(p.row * 3 + Math.floor(noise(p.x, p.y) * 5)) % 5]; ctx.fillRect(p.x - .4, p.y - .4, 3.2, 3.2);
+        ctx.fillStyle = '#00000022'; ctx.fillRect(p.x + 1.2, p.y - .4, 1.6, 3.2);
+      }
+      ctx.restore();
+    }
     function wake(stamp) {
       for(let i=1;i<trail.length;i++){
         const a=trail[i-1],b=trail[i],age=Math.max(0,(stamp-b.at)/1000),fade=Math.max(0,1-age/8);
@@ -112,22 +126,22 @@
         const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
         if(length<.01||length>20)continue;
         const w=(.9+age*.7),px=-dy/length*w,py=dx/length*w;
-        ctx.fillStyle=`rgba(140,229,215,${strength*.26})`;
+        ctx.fillStyle=look==='real'?`rgba(214,240,238,${strength*.3})`:`rgba(140,229,215,${strength*.26})`;
         ctx.beginPath();ctx.moveTo(a.x+px,a.y+py);ctx.lineTo(b.x+px,b.y+py);ctx.lineTo(b.x-px,b.y-py);ctx.lineTo(a.x-px,a.y-py);ctx.closePath();ctx.fill();
-        if(i%2===0){ctx.strokeStyle=`rgba(231,253,236,${strength*.48})`;ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(b.x-px*.8,b.y-py*.8);ctx.quadraticCurveTo(b.x-dx*.5,b.y-dy*.5,b.x+px*.8,b.y+py*.8);ctx.stroke();}
+        if(i%2===0){ctx.strokeStyle=look==='real'?`rgba(255,255,255,${strength*.6})`:`rgba(231,253,236,${strength*.48})`;ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(b.x-px*.8,b.y-py*.8);ctx.quadraticCurveTo(b.x-dx*.5,b.y-dy*.5,b.x+px*.8,b.y+py*.8);ctx.stroke();}
       }
     }
     function ship(time, moving, tier, speed, wind) {
-      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, reduced: reduced.matches, style: shipStyle });
+      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), heading, time, moving, tier, speed, wind, bank, reduced: reduced.matches, style: look==='real'?'real':(legacyShip||'cute') });
     }
     function renderMini(state) {
-      mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);
-      mc.save();worldTransform(mc,state.position,75,55,.5,0);mc.fillStyle='#e2dcc0';mc.fill(land,'evenodd');mc.restore();
+      mc.clearRect(0,0,150,110);mc.fillStyle=look==='real'?'#2a6277':'#adc9bd';mc.fillRect(0,0,150,110);
+      mc.save();worldTransform(mc,state.position,75,55,.5,0);mc.fillStyle=look==='real'?'#8c9c72':'#e2dcc0';mc.fill(land,'evenodd');mc.restore();
       for(const p of E.PORTS){const x=75+(p.x-state.position.x)*.5,y=55+(p.y-state.position.y)*.5;
         if(x<4||x>146||y<4||y>106)continue;
         mc.fillStyle=state.visited.includes(p.id)?'#386957':'#a68453';mc.beginPath();mc.arc(x,y,2,0,Math.PI*2);mc.fill();}
       mc.save();mc.translate(75,55);mc.rotate(heading*Math.PI/180);mc.fillStyle='#a45c42';mc.beginPath();mc.moveTo(0,-6);mc.lineTo(4,5);mc.lineTo(0,3);mc.lineTo(-4,5);mc.closePath();mc.fill();mc.restore();
-      mc.fillStyle='#385d51';mc.font='10px Georgia';mc.fillText('N',7,13);
+      mc.fillStyle=look==='real'?'#d7e6e2':'#385d51';mc.font='10px Georgia';mc.fillText('N',7,13);
     }
     function renderPorts(state) {
       const visible=E.PORTS.map(p=>({p,...C.project(p,state.position,cameraView())})).filter(v=>v.x>50&&v.x<width-50&&v.y>115&&v.y<height-110)
@@ -185,22 +199,28 @@
       // Integrate phase so changing wind cannot amplify hours of elapsed page time.
       if (!reduced.matches) animationTime += dt * (.45 + wind.strength * .75);
       const time=reduced.matches?0:animationTime;
-      const gradient=ctx.createLinearGradient(0,0,width*.6,height);gradient.addColorStop(0,'#175571');gradient.addColorStop(.45,'#287f91');gradient.addColorStop(.72,'#248b94');gradient.addColorStop(1,'#164d70');ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
+      const gradient=ctx.createLinearGradient(0,0,width*.6,height);
+      if(look==='real'){gradient.addColorStop(0,'#0a3550');gradient.addColorStop(.5,'#0f5a74');gradient.addColorStop(1,'#0a3652');}
+      else{gradient.addColorStop(0,'#175571');gradient.addColorStop(.45,'#287f91');gradient.addColorStop(.72,'#248b94');gradient.addColorStop(1,'#164d70');}
+      ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
       const light=ctx.createRadialGradient(width*.22,height*.16,0,width*.22,height*.16,width*.8);
-      light.addColorStop(0,'#c4efcd35');light.addColorStop(1,'#b7d9bc00');ctx.fillStyle=light;ctx.fillRect(0,0,width,height);
+      if(look==='real'){light.addColorStop(0,'#fff0c42e');light.addColorStop(1,'#fff0c400');}else{light.addColorStop(0,'#c4efcd35');light.addColorStop(1,'#b7d9bc00');}ctx.fillStyle=light;ctx.fillRect(0,0,width,height);
       ctx.save();worldTransform(ctx,state.position);
       ctx.lineWidth=.45;ctx.strokeStyle='#eef5d83b';
       const {left,top,right,bottom}=C.bounds(state.position,cameraView(),width,height);
-      water({left,top,right,bottom},time,wind);
+      if(look==='real'){art.waterReal({left,top,right,bottom},time,wind);ctx.drawImage(realLand(),0,0,N.G.width,N.G.height);harborReal(state);}
+      else{water({left,top,right,bottom},time,wind);
       ctx.fillStyle='#dcd8b8';ctx.fill(land,'evenodd');
       ctx.drawImage(scenery,0,0,N.G.width,N.G.height);
-      harbor(state);
+      harbor(state);}
       art.shadows({left,top,right,bottom},time);
-      ctx.save();ctx.clip(seaMask,'evenodd');art.life({left,top,right,bottom},time,wind,N.isSea,'sea');wake(stamp);ctx.restore();
+      ctx.save();ctx.clip(seaMask,'evenodd');art.life({left,top,right,bottom},time,wind,N.isSea,'sea',reduced.matches);wake(stamp);ctx.restore();
       art.life({left,top,right,bottom},time,wind,N.isSea,'air');
       ctx.restore();
       const visible=renderPorts(state);
-      for(const {x,y} of visible){ctx.save();ctx.translate(x,y);ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
+      for(const {x,y} of visible){ctx.save();ctx.translate(x,y);
+        if(look==='real'){const roofs=['#c8714b','#b65f3b','#dba37a','#e8dfcb','#a9563a'];for(let k=0;k<9;k++){const a=k*2.4,r=2+(k%3)*3.2,px=Math.cos(a)*r*1.5,py=Math.sin(a)*r-6;ctx.fillStyle='#10202c55';ctx.fillRect(px,py+1,4.2,4.2);ctx.fillStyle=roofs[k%5];ctx.fillRect(px-1,py-1,4.2,4.2);}ctx.restore();continue;}
+        ctx.fillStyle='#f4eacf';ctx.strokeStyle='#83765b';ctx.lineWidth=1;ctx.fillRect(-5,-18,10,21);ctx.strokeRect(-5,-18,10,21);ctx.fillStyle='#b07a55';ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(0,-28);ctx.lineTo(8,-18);ctx.fill();ctx.fillStyle='#efdb98';ctx.fillRect(-2,-14,4,6);ctx.restore();}
       for (const site of E.seaSightings(state)) {
         const { x, y } = C.project(site, state.position, cameraView());
         if (x < 22 || x > width - 22 || y < 100 || y > height - 75) continue;
@@ -240,7 +260,7 @@
         ctx.restore();
       }
       ship(time,moving,state.ship,state.motion?.speed??1,wind);
-      art.atmosphere(width,height,state.day+state.seaProgress);
+      art.atmosphere(width,height,state.day+state.seaProgress,look);
       if(stamp-lastHUD>100||!dt){renderHUD(state,visible,wind);renderMini(state);lastHUD=stamp;}
     }
     canvas.addEventListener('pointerdown',event=>{if(event.button===0)press={id:event.pointerId,x:event.clientX,y:event.clientY};});
@@ -269,6 +289,19 @@
       updateCameraControl(); lastHUD=0; render();
     });
     updateCameraControl();
+    function applyLook() {
+      $('voyage-stage').dataset.look = look;
+      const real = look === 'real';
+      $('voyage-look-toggle').textContent = real ? '화면: 사실적' : '화면: 귀여운';
+      $('voyage-look-toggle').setAttribute('aria-pressed', String(real));
+      $('voyage-look-toggle').setAttribute('aria-label', real ? '사실적인 항해 화면, 누르면 귀여운 화면으로 바꿉니다' : '귀여운 항해 화면, 누르면 사실적인 화면으로 바꿉니다');
+    }
+    $('voyage-look-toggle').addEventListener('click',()=>{
+      look=look==='real'?'cute':'real';
+      try { localStorage.setItem('windward-look',look); } catch (_) {}
+      applyLook(); lastHUD=0; render();
+    });
+    applyLook();
     $('voyage-ports').addEventListener('click',event=>{
       const button=event.target.closest('[data-voyage-port]');if(!button)return;
       const state=read(),id=button.dataset.voyagePort,p=E.portOf(id);
