@@ -110,7 +110,7 @@
       }
     }
     function ship(time, moving, tier, speed, wind) {
-      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, compact: width < 500, reduced: reduced.matches });
+      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, reduced: reduced.matches });
     }
     function renderMini(state) {
       mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);
@@ -170,7 +170,7 @@
       $('voyage-stage').dataset.camera = headingUp ? 'heading' : 'north';
       if(previous&&N.distance(previous,state.position)>35)trail=[];
       if(moving&&(!previous||N.distance(previous,state.position)>.8)){
-        const stern=58*art.shipScale(width,height,cx,cy,heading-cameraBearing(),state.ship,width<500)/scale,angle=heading*Math.PI/180;
+        const stern=58*art.shipScale(width,height,cx,cy,heading-cameraBearing(),state.ship)/scale,angle=heading*Math.PI/180;
         trail.push({x:state.position.x-Math.sin(angle)*stern,y:state.position.y+Math.cos(angle)*stern,at:stamp,speed:state.motion?.speed??0});previous={...state.position};
       }
       trail=trail.filter(p=>stamp-p.at<8000).slice(-140);
