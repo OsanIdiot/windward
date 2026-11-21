@@ -148,14 +148,20 @@
       }
       return Math.max(.1, scale);
     }
-    // Sail cloth in yard-local coordinates (yard along x at y = 0, cloth hanging aft).
-    // bow pushes the cloth forward (wind astern); luff makes it slat and ripple (head to wind).
+    // Sail cloth in yard-local coordinates: the yard is the straight leading edge at y = 0 (toward the bow) and a
+    // filled sail bellies AFT, away from the wind, as a crescent. With the wind astern the cloth bellies forward
+    // instead; head to wind (luff) it flattens and ripples. sailDepth gives the signed centre of the belly.
+    const sailEnd = d => d * .3;
+    function sailDepth(d, belly, bow, luff) {
+      const aft = (d - sailEnd(d)) + belly;
+      return sailEnd(d) * (1 - bow * .6) + lerp(aft, -(belly + (d - sailEnd(d)) * .6), bow) * (1 - luff * .8);
+    }
     function sailPath(w, d, belly, bow, luff, time, phase) {
-      const p = new Path2D(), top = 6 + bow * 10 + 3 * (1 - luff), n = 12;
-      p.moveTo(-w, 0); p.quadraticCurveTo(0, -top, w, 0);
+      const p = new Path2D(), n = 14, end = sailEnd(d) * (1 - bow * .6), signed = sailDepth(d, belly, bow, luff) - end;
+      p.moveTo(-w, 0); p.lineTo(w, 0);
       for (let i = n; i >= 0; i--) {
         const u = i / n, ripple = luff ? Math.sin(time * 9 + u * 11 + phase) * luff * 1.8 : 0;
-        p.lineTo(w * (2 * u - 1) * (.88 + .12 * Math.sin(u * Math.PI)), d + belly * Math.sin(u * Math.PI) * (1 - bow * .75) - bow * belly * .2 + ripple);
+        p.lineTo(w * (2 * u - 1) * (.9 + .1 * Math.sin(u * Math.PI)), end + signed * Math.sin(u * Math.PI) + ripple);
       }
       p.closePath(); return p;
     }
@@ -193,14 +199,14 @@
       const lean = -heel * 5;
       for (const [sy, w] of sails) {
         const flutter = reduced ? 0 : Math.sin(time * 2 + sy) * (.6 + wind.strength * 1.4 + Math.abs(bank)) * (1 + tr.luff * 2);
-        const belly = Math.max(0, (3 + speed * 3) * (1 - tr.luff * .85) + flutter * .7), d = 11;
+        const belly = Math.max(0, (3 + speed * 3) * (1 - tr.luff * .85) + flutter * .7), d = 15;
         const sail = sailPath(w, d, belly, tr.bow, tr.luff, time, sy);
         ctx.save(); ctx.translate(lean, sy); ctx.rotate(tr.brace + (reduced ? 0 : tr.luff * Math.sin(time * 7 + sy) * .12));
         ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#052f4a2e'; ctx.fill(sail); ctx.restore();
-        const cloth = ctx.createLinearGradient(0, -10, 0, d + belly);
-        cloth.addColorStop(0, '#fffaf0'); cloth.addColorStop(.6, '#fff4da'); cloth.addColorStop(1, '#f0dfb8');
+        const mid = sailDepth(d, belly, tr.bow, tr.luff), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 0, Math.max(0, mid) + 2);
+        cloth.addColorStop(0, '#fffaf0'); cloth.addColorStop(.55, '#fff4da'); cloth.addColorStop(1, '#efdcb2');
         ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = edge; ctx.lineWidth = 2.4; ctx.stroke(sail);
-        line(0, -4, 0, d - 2 + belly * .6, '#e0cfa6', 1.4);
+        line(0, 1, 0, mid - (mid > 0 ? 1 : -1), '#e0cfa6', 1.4);
         line(-w - 3, 0, w + 3, 0, outline, 4.5);
         ctx.restore();
         ctx.fillStyle = '#8a6240'; ctx.strokeStyle = outline; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(lean, sy, 4.2, 0, TAU); ctx.fill(); ctx.stroke();
@@ -249,11 +255,11 @@
         const sail = sailPath(w, depth, belly, tr.bow, tr.luff, time, my);
         ctx.save(); ctx.translate(lean, my); ctx.rotate(tr.brace + (reduced ? 0 : tr.luff * Math.sin(time * 7 + my) * .1));
         ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#2b2a2640'; ctx.fill(sail); ctx.restore();
-        const cloth = ctx.createLinearGradient(0, -6, 3, depth + belly);
-        cloth.addColorStop(0, '#a89a7c'); cloth.addColorStop(.15, '#e6d9b6'); cloth.addColorStop(.45, '#fff8df'); cloth.addColorStop(.75, '#f1e2bb'); cloth.addColorStop(1, '#a39170');
+        const mid = sailDepth(depth, belly, tr.bow, tr.luff), cloth = ctx.createLinearGradient(0, Math.min(0, mid), 3, Math.max(0, mid) + 2);
+        cloth.addColorStop(0, '#d9ccaa'); cloth.addColorStop(.3, '#fff8df'); cloth.addColorStop(.7, '#f1e2bb'); cloth.addColorStop(1, '#a39170');
         ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = '#b6a27a'; ctx.lineWidth = .7; ctx.stroke(sail);
         ctx.save(); ctx.clip(sail);
-        for (let seam = -4; seam <= 4; seam++) { ctx.strokeStyle = '#8d7a5640'; ctx.lineWidth = .55; ctx.beginPath(); ctx.moveTo(w * seam / 4.6, -2); ctx.quadraticCurveTo(w * seam / 4.2, depth * .6, w * seam / 5.4, depth + belly); ctx.stroke(); }
+        for (let seam = -4; seam <= 4; seam++) { ctx.strokeStyle = '#8d7a5640'; ctx.lineWidth = .55; const edge = sailEnd(depth) * (1 - tr.bow * .6) + (mid - sailEnd(depth) * (1 - tr.bow * .6)) * (1 - Math.pow(seam / 4.6, 2)); ctx.beginPath(); ctx.moveTo(w * seam / 4.6, 1); ctx.lineTo(w * seam / 4.6, edge); ctx.stroke(); }
         ctx.restore();
         line(-w - 3, 0, w + 3, 0, '#5c432e', 2.1); line(-w - 3, -.7, w + 3, -.7, '#e1c391', .5);
         ctx.restore();
