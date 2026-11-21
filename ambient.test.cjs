@@ -57,3 +57,33 @@ test('mist is bounded, deterministic and occasional', () => {
   for (let t = 0; t < 600; t += .5) { const h = A.haze(t); assert.ok(h >= 0 && h <= 1); assert.equal(h, A.haze(t)); samples++; if (h > .05) hazy++; }
   assert.ok(hazy / samples > .03 && hazy / samples < .5, `mist fraction ${(hazy / samples).toFixed(2)}`);
 });
+test('sail trim follows the wind angle: braced close-hauled, square running, slatting head to wind', () => {
+  const close = A.sailTrim(0, 60, .6), beam = A.sailTrim(0, 90, .6), run = A.sailTrim(0, 180, .6), head = A.sailTrim(0, 10, .6);
+  assert.ok(Math.abs(close.brace) > Math.abs(beam.brace) && Math.abs(beam.brace) > 0 && Math.abs(run.brace) < 1e-9, 'yards swing square as the wind moves aft');
+  assert.ok(Math.abs(head.brace) < Math.abs(close.brace), 'sails hang near the centerline when head to wind');
+  assert.ok(head.luff === 1 && close.luff === 0 && beam.luff === 0, 'only a headwind makes the sails slat');
+  assert.ok(run.bow === 1 && beam.bow === 0, 'cloth bellies forward only with the wind astern');
+});
+test('sail trim is mirrored for wind from port and starboard and continuous in the heading', () => {
+  const starboard = A.sailTrim(0, 70, .5), port = A.sailTrim(0, 290, .5);
+  assert.equal(starboard.side, 1); assert.equal(port.side, -1);
+  assert.ok(Math.abs(starboard.brace + port.brace) < 1e-9 && Math.abs(starboard.heel + port.heel) < 1e-9);
+  let previous = A.sailTrim(0, 100, .5);
+  for (let h = 1; h <= 360; h++) {
+    const now = A.sailTrim(h, 100, .5);
+    if (Math.abs(((now.rel - previous.rel + 540) % 360) - 180) < 5) { // ignore the single wrap at +/-180
+      assert.ok(Math.abs(now.brace - previous.brace) < .2, `yard angle jumps at heading ${h}`);
+      assert.ok(Math.abs(now.heel - previous.heel) < .1);
+    }
+    previous = now;
+  }
+});
+test('heel needs both wind and a beam angle, and grows with wind strength', () => {
+  assert.equal(A.sailTrim(0, 0, 1).heel, 0, 'no heel head to wind');
+  assert.ok(Math.abs(A.sailTrim(0, 180, 1).heel) < 1e-9, 'no heel running before the wind');
+  assert.ok(Math.abs(A.sailTrim(0, 90, 1).heel) > Math.abs(A.sailTrim(0, 90, .1).heel));
+});
+test('value noise stays in range and tiles seamlessly', () => {
+  for (let i = 0; i < 400; i++) { const v = A.fbm(i * .37, i * .11); assert.ok(v >= 0 && v <= 1); }
+  for (let y = 0; y < 8; y += .7) assert.ok(Math.abs(A.fbm(0, y, 4, 8) - A.fbm(8, y, 4, 8)) < 1e-9, 'periodic in x');
+});
