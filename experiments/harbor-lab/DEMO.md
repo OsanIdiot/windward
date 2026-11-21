@@ -1,6 +1,6 @@
 # Integrated Windward Demo
 
-The accepted painted sailing renderer is connected to the existing 0.1.12 game.
+The accepted painted sailing renderer is connected to the existing 0.1.13 game.
 This is a separate build, not a replacement of the stable entry point or a new
 art pass. The build targets `/windward/demo/` when deployed with Pages.
 

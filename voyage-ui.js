@@ -58,6 +58,14 @@
     let trail = [], previous = null, press = null, lastHUD = 0, bank = 0, animationTime = 0;
     let captionRight = 0, captionBottom = 0;
     let headingUp = true;
+    // Ship look for comparison: ?ship=cute | real | painted (remembered in this browser).
+    let shipStyle = 'painted';
+    try {
+      const asked = new URLSearchParams(location.search).get('ship');
+      if (['cute', 'real', 'painted'].includes(asked)) localStorage.setItem('windward-ship', asked);
+      const saved = localStorage.getItem('windward-ship');
+      if (['cute', 'real', 'painted'].includes(saved)) shipStyle = saved;
+    } catch (_) {}
     try { headingUp = localStorage.getItem('windward-camera') !== 'north'; } catch (_) {}
     const cameraBearing = () => headingUp ? heading : 0;
     const cameraView = () => ({ x: cx, y: cy, zoom: scale, bearing: cameraBearing() });
@@ -110,7 +118,7 @@
       }
     }
     function ship(time, moving, tier, speed, wind) {
-      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, reduced: reduced.matches });
+      art.ship({ x: cx, y: cy, width, height, bearing: heading - cameraBearing(), time, moving, tier, speed, wind, bank, reduced: reduced.matches, style: shipStyle });
     }
     function renderMini(state) {
       mc.clearRect(0,0,150,110);mc.fillStyle='#adc9bd';mc.fillRect(0,0,150,110);

@@ -124,7 +124,102 @@
       }
       return Math.max(.1, scale);
     }
-    function ship({ x, y, width, height, bearing, time, moving, tier, speed, wind, bank, reduced }) {
+    // "Cute" style: flat, rounded, outlined shapes that echo the chart icons. Drawn at the same 130x165 footprint.
+    function cuteShip(time, tier, speed, wind, bank, reduced) {
+      const outline = '#6c5140', edge = '#cdb98f';
+      const hull = new Path2D('M0 -58 C21 -44 31 -15 29 15 Q28 42 15 53 L-15 53 Q-28 42 -29 15 C-31 -15 -21 -44 0 -58Z');
+      const deck = new Path2D(); deck.addPath(hull, new DOMMatrix([.74, 0, 0, .82, 0, -1]));
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.save(); ctx.translate(8, 10); ctx.fillStyle = '#052f4a38'; ctx.fill(hull); ctx.restore();
+      ctx.fillStyle = '#b9855a'; ctx.fill(hull); ctx.strokeStyle = outline; ctx.lineWidth = 3.2; ctx.stroke(hull);
+      ctx.fillStyle = '#ecc78f'; ctx.fill(deck);
+      ctx.save(); ctx.clip(deck);
+      for (const px of [-12, -4, 4, 12]) line(px, -50, px, 50, '#d6ac74', 1.4);
+      ctx.restore();
+      ctx.strokeStyle = '#d3a56c'; ctx.lineWidth = 1.6; ctx.stroke(deck);
+      const roundRect = (x, y, w, h, r) => { const p = new Path2D(); p.moveTo(x + r, y); p.lineTo(x + w - r, y); p.quadraticCurveTo(x + w, y, x + w, y + r); p.lineTo(x + w, y + h - r); p.quadraticCurveTo(x + w, y + h, x + w - r, y + h); p.lineTo(x + r, y + h); p.quadraticCurveTo(x, y + h, x, y + h - r); p.lineTo(x, y + r); p.quadraticCurveTo(x, y, x + r, y); return p; };
+      const three = tier >= 3, sails = three ? [[-36, 30], [-8, 36], [20, 30]] : [[-26, 36], [6, 33]];
+      if (!three) {
+        const cabin = roundRect(-12, 32, 24, 15, 6);
+        ctx.fillStyle = '#9a7048'; ctx.fill(cabin); ctx.strokeStyle = outline; ctx.lineWidth = 2.2; ctx.stroke(cabin);
+        ctx.fillStyle = '#f6dc9b'; for (const px of [-5, 5]) { ctx.beginPath(); ctx.arc(px, 40, 2, 0, TAU); ctx.fill(); }
+      }
+      for (const [sy, w] of sails) {
+        const flutter = reduced ? 0 : Math.sin(time * 2 + sy) * (.6 + wind.strength * 1.4 + Math.abs(bank)), belly = 3 + speed * 3 + flutter * .7;
+        const sail = new Path2D();
+        sail.moveTo(-w, sy); sail.quadraticCurveTo(0, sy - 10 + flutter * .4, w, sy);
+        sail.bezierCurveTo(w * .92, sy + 6 + belly * .5, w * .55, sy + 12 + belly, 0, sy + 12 + belly);
+        sail.bezierCurveTo(-w * .55, sy + 12 + belly, -w * .92, sy + 6 + belly * .5, -w, sy); sail.closePath();
+        ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#052f4a2e'; ctx.fill(sail); ctx.restore();
+        const cloth = ctx.createLinearGradient(0, sy - 10, 0, sy + 13 + belly);
+        cloth.addColorStop(0, '#fffaf0'); cloth.addColorStop(.6, '#fff4da'); cloth.addColorStop(1, '#f0dfb8');
+        ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = edge; ctx.lineWidth = 2.4; ctx.stroke(sail);
+        line(0, sy - 5, 0, sy + 8 + belly, '#e0cfa6', 1.4);
+        line(-w - 3, sy, w + 3, sy, outline, 4.5);
+        ctx.fillStyle = '#8a6240'; ctx.strokeStyle = outline; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(0, sy, 4.2, 0, TAU); ctx.fill(); ctx.stroke();
+      }
+      const flag = reduced ? 0 : Math.sin(time * 3) * 2.2;
+      line(0, -52, 0, -69, outline, 2.4);
+      ctx.fillStyle = '#d0573f'; ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, -68); ctx.quadraticCurveTo(10, -72 + flag, 21, -65 + flag); ctx.lineTo(15, -61 + flag); ctx.quadraticCurveTo(8, -64, 0, -58); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    // "Realistic" style: crisp vector carrack seen from above, long hull, planked deck, rigging and shaded sails.
+    function realShip(time, tier, speed, wind, bank, reduced) {
+      const hull = new Path2D('M0 -80 C13 -68 22 -42 23 -6 C24 24 21 46 13 58 L-13 58 C-21 46 -24 24 -23 -6 C-22 -42 -13 -68 0 -80Z');
+      const deck = new Path2D(); deck.addPath(hull, new DOMMatrix([.82, 0, 0, .93, 0, -2]));
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.save(); ctx.translate(7, 9); ctx.fillStyle = '#042b4660'; ctx.fill(hull); ctx.restore();
+      const timber = ctx.createLinearGradient(-24, 0, 24, 0);
+      timber.addColorStop(0, '#2f2923'); timber.addColorStop(.16, '#7b5234'); timber.addColorStop(.5, '#b98650'); timber.addColorStop(.84, '#76502f'); timber.addColorStop(1, '#312a23');
+      ctx.fillStyle = timber; ctx.fill(hull); ctx.strokeStyle = '#d9ad66'; ctx.lineWidth = 1.4; ctx.stroke(hull);
+      const planks = ctx.createLinearGradient(-19, -50, 19, 50);
+      planks.addColorStop(0, '#ecd09a'); planks.addColorStop(.5, '#c39a62'); planks.addColorStop(1, '#966b42');
+      ctx.fillStyle = planks; ctx.fill(deck);
+      ctx.save(); ctx.clip(deck);
+      for (let px = -18; px <= 18; px += 4.5) {
+        line(px, -76, px, 56, '#6f4d3270', .6);
+        for (let py = -70; py < 56; py += 19) line(px, py + ((px * 7) % 9), px + 4.5, py + ((px * 7) % 9), '#6f4d3255', .5);
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#e9c98e'; ctx.lineWidth = .9; ctx.stroke(deck);
+      // Stern castle with windows, forecastle hatch, and a small helm.
+      ctx.fillStyle = '#5e432d'; ctx.fillRect(-15, 36, 30, 19); ctx.fillStyle = '#b98a55'; ctx.fillRect(-15, 32, 30, 15);
+      for (let py = 34; py < 46; py += 3) line(-14, py, 14, py, '#e0b878', .6);
+      for (const px of [-9, 0, 9]) { ctx.fillStyle = '#2a403c'; ctx.fillRect(px - 2, 48, 4, 3.5); }
+      ctx.fillStyle = '#4d3827'; ctx.fillRect(-6, -60, 12, 11); ctx.strokeStyle = '#cfae72'; ctx.lineWidth = .8; ctx.strokeRect(-6, -60, 12, 11);
+      ctx.fillStyle = '#7a5538'; ctx.beginPath(); ctx.arc(0, 26, 2.2, 0, TAU); ctx.fill();
+      for (const px of [-14, 14]) for (let py = -20; py <= 24; py += 11) { ctx.fillStyle = '#6b4a32'; ctx.beginPath(); ctx.ellipse(px * .8, py, 2.6, 3.4, 0, 0, TAU); ctx.fill(); }
+      // Bowsprit and jib.
+      line(0, -78, 0, -102, '#533b29', 2.4);
+      const jibFlutter = reduced ? 0 : Math.sin(time * 2.6) * (.5 + wind.strength);
+      ctx.fillStyle = '#f6edd0'; ctx.strokeStyle = '#b9a67f'; ctx.lineWidth = .6;
+      ctx.beginPath(); ctx.moveTo(0, -99); ctx.quadraticCurveTo(10 + jibFlutter, -82, 0, -64); ctx.closePath(); ctx.fill(); ctx.stroke();
+      const three = tier >= 3, masts = three ? [[-46, 32, 21], [-10, 42, 26], [26, 33, 20]] : [[-30, 37, 23], [8, 43, 26]];
+      // Standing rigging beneath the cloth.
+      for (const [my] of masts) for (const side of [-1, 1]) for (const dy of [-7, 0, 7]) line(side * 2, my, side * 20, my + dy + 5, '#2f2a2488', .5);
+      for (const [my, w, d] of masts) {
+        const flutter = reduced ? 0 : Math.sin(time * 2 + my) * (.5 + wind.strength * 1.2 + Math.abs(bank)), belly = d * .35 + speed * 3.5 + flutter;
+        const sail = new Path2D();
+        sail.moveTo(-w, my - 3); sail.quadraticCurveTo(0, my - 9 + flutter * .4, w, my - 3);
+        sail.bezierCurveTo(w * .96, my + d * .45, w * .78, my + d, w * .55, my + d + belly * .35);
+        sail.quadraticCurveTo(0, my + d + belly, -w * .55, my + d + belly * .35);
+        sail.bezierCurveTo(-w * .78, my + d, -w * .96, my + d * .45, -w, my - 3); sail.closePath();
+        ctx.save(); ctx.translate(4, 6); ctx.fillStyle = '#2b2a2640'; ctx.fill(sail); ctx.restore();
+        const cloth = ctx.createLinearGradient(0, my - 8, 3, my + d + belly);
+        cloth.addColorStop(0, '#a89a7c'); cloth.addColorStop(.15, '#e6d9b6'); cloth.addColorStop(.45, '#fff8df'); cloth.addColorStop(.75, '#f1e2bb'); cloth.addColorStop(1, '#a39170');
+        ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = '#b6a27a'; ctx.lineWidth = .7; ctx.stroke(sail);
+        ctx.save(); ctx.clip(sail);
+        for (let seam = -4; seam <= 4; seam++) { ctx.strokeStyle = '#8d7a5640'; ctx.lineWidth = .55; ctx.beginPath(); ctx.moveTo(w * seam / 4.6, my - 6); ctx.quadraticCurveTo(w * seam / 4.2, my + d * .6, w * seam / 5.4, my + d + belly); ctx.stroke(); }
+        ctx.restore();
+        line(-w - 3, my - 3, w + 3, my - 3, '#5c432e', 2.1); line(-w - 3, my - 3.7, w + 3, my - 3.7, '#e1c391', .5);
+        for (const side of [-1, 1]) line(side * (w * .55), my + d + belly * .35, side * 20, my + d + 7, '#e4cca078', .6);
+        ctx.fillStyle = '#5a412d'; ctx.beginPath(); ctx.arc(0, my - 3, 3, 0, TAU); ctx.fill(); ctx.strokeStyle = '#d6b27a'; ctx.lineWidth = .6; ctx.stroke();
+      }
+      const flag = reduced ? 0 : Math.sin(time * 3) * 2, top = masts[0][0] - 3;
+      line(0, top, 0, top - 14, '#533b29', 1.4);
+      ctx.fillStyle = '#a64e35'; ctx.beginPath(); ctx.moveTo(0, top - 14); ctx.quadraticCurveTo(9, top - 17 + flag, 20, top - 11 + flag); ctx.lineTo(15, top - 8 + flag); ctx.quadraticCurveTo(8, top - 11, 0, top - 6); ctx.closePath(); ctx.fill();
+    }
+    function ship({ x, y, width, height, bearing, time, moving, tier, speed, wind, bank, reduced, style = 'painted' }) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(bearing * Math.PI / 180);
       const size = shipScale(width, height, x, y, bearing, tier); ctx.scale(size, size);
       const shadow = ctx.createRadialGradient(10, 12, 9, 10, 12, 65);
@@ -145,6 +240,8 @@
       }
       ctx.save();
       if (!reduced) { ctx.translate(0, Math.sin(time * 1.5) * (.5 + wind.strength + speed * .4)); ctx.rotate(Math.sin(time * 1.4) * (.01 + wind.strength * .015 + speed * .008) + bank * .035); }
+      if (style === 'cute') { ctx.scale(1.2, 1.2); cuteShip(time, tier, speed, wind, bank, reduced); ctx.restore(); ctx.restore(); return; }
+      if (style === 'real') { realShip(time, tier, speed, wind, bank, reduced); ctx.restore(); ctx.restore(); return; }
       if (sprite.complete && sprite.naturalWidth) {
         if (reduced) {
           ctx.drawImage(sprite, -65, -103, 130, 165);
