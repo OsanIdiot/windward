@@ -65,7 +65,7 @@
     function shipScale(width, height, x, y, bearing, tier) {
       const a = bearing * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
       // Scale with the viewport like the map does, so the ship keeps the same proportion on phones and desktops.
-      let scale = Math.max(.62, Math.min(1.2, Math.min(width, height) / 500)) * (1 + tier * .035);
+      let scale = Math.max(.45, Math.min(.8, Math.min(width, height) / 820)) * (1 + tier * .035);
       // Fit even a fully upgraded ship in a short landscape viewport, including a rocking margin.
       for (const [px, py] of [[-65, -103], [65, -103], [-65, 62], [65, 62]]) {
         const dx = px * c - py * s, dy = px * s + py * c;
