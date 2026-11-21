@@ -82,7 +82,8 @@
     const strength = .2 + .8 * (.5 + .5 * Math.sin(phase * .73 + 1.2));
     const alignment = Math.cos(angleDelta(heading, from) * Math.PI / 180);
     return { from, strength, knots: 4 + strength * 10,
-      factor: .9 - .1 * strength * alignment,
+      // A following wind helps a little (up to 100%), a beam wind is 90%, and a headwind costs 20-60% of the speed.
+      factor: alignment >= 0 ? .9 - (.25 + .25 * strength) * alignment : .9 - .1 * strength * alignment,
       kind: alignment > .5 ? '맞바람' : alignment < -.5 ? '순풍' : '옆바람' };
   }
   const BRAKE = .45;

@@ -21,7 +21,7 @@ test('weather is pure, deterministic, bounded and independent of camera or navig
     assert.ok(w.from >= 0 && w.from < 360);
     assert.ok(w.strength >= .2 && w.strength <= 1);
     assert.ok(w.knots >= 6 && w.knots <= 14);
-    assert.ok(w.factor >= .8 && w.factor <= 1);
+    assert.ok(w.factor >= .4 && w.factor <= 1);
   }
   assert.deepEqual(E.windAt({ ...s, navigation: { mode: 'auto' } }), wind);
   assert.deepEqual(E.windAt({ ...s, navigation: { mode: 'manual' } }), wind);
@@ -63,4 +63,30 @@ test('wind-limited movement remains frame-rate independent and pausing cannot re
   const paused = E.act(coarse, { type: 'pause', immediate: true });
   assert.deepEqual(E.windAt(paused), E.windAt(coarse));
   assert.deepEqual(E.windAt(E.advance(paused, 1)), E.windAt(paused));
+});
+
+test('a headwind slows the ship a lot, more in a stronger wind, and speed rises steadily as the wind moves aft', () => {
+  const s = sea();
+  for (let day = 1; day < 120; day += 3) {
+    const base = { ...s, day }, from = E.windAt(base).from;
+    const speeds = [0, 30, 60, 90, 120, 150, 180].map(offset => E.windAt(base, (from + offset) % 360).factor);
+    for (let i = 1; i < speeds.length; i++) assert.ok(speeds[i] > speeds[i - 1], 'each step away from the wind source is faster');
+    const strength = E.windAt(base).strength;
+    assert.ok(speeds[0] <= .6 + 1e-9 && speeds[0] >= .4 - 1e-9, 'headwind keeps 40-60% of the speed');
+    assert.ok(Math.abs(speeds[0] - (.9 - (.25 + .25 * strength))) < 1e-9, 'a stronger headwind slows more');
+    assert.ok(speeds[6] >= .92 - 1e-9 && speeds[6] <= 1 + 1e-9, 'following wind never exceeds the old maximum');
+  }
+});
+test('a ship heading into the wind covers clearly less distance than the same ship running before it', () => {
+  const distance = offset => {
+    let state = sea(); const from = E.windAt(state).from;
+    state.motion.heading = (from + offset) % 360; state.motion.speed = E.windAt(state, state.motion.heading).factor;
+    state = E.act(state, { type: 'steer', heading: state.motion.heading });
+    const start = state.position;
+    for (let i = 0; i < 80 && state.navigation?.running; i++) state = E.advance(state, .1);
+    return N.distance(start, state.position);
+  };
+  const head = distance(0), tail = distance(180);
+  assert.ok(head > 5, 'sailing into the wind never stalls');
+  assert.ok(head < tail * .75, `headwind ${head.toFixed(1)} vs following wind ${tail.toFixed(1)}`);
 });

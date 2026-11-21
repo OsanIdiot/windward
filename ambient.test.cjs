@@ -62,7 +62,7 @@ test('sail trim follows the wind angle: braced close-hauled, square running, sla
   assert.ok(Math.abs(close.brace) > Math.abs(beam.brace) && Math.abs(beam.brace) > 0 && Math.abs(run.brace) < 1e-9, 'yards swing square as the wind moves aft');
   assert.ok(Math.abs(head.brace) < Math.abs(close.brace), 'sails hang near the centerline when head to wind');
   assert.ok(head.luff === 1 && close.luff === 0 && beam.luff === 0, 'only a headwind makes the sails slat');
-  assert.ok(run.bow === 1 && beam.bow === 0, 'cloth bellies forward only with the wind astern');
+  assert.ok(head.push < -.5 && beam.push > .5 && run.push > beam.push, 'the wind backs the sail head to wind, fills it forward beside and behind the ship');
 });
 test('sail trim is mirrored for wind from port and starboard and continuous in the heading', () => {
   const starboard = A.sailTrim(0, 70, .5), port = A.sailTrim(0, 290, .5);

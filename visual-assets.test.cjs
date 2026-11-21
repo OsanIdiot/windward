@@ -21,7 +21,7 @@ test('visual renderer loads before voyage UI and is deployed without changing ga
   assert.ok(html.indexOf('src="voyage-art.js') < html.indexOf('src="voyage-ui.js'));
   assert.ok(read('server.cjs').includes("files.add('voyage-art.js')"));
   assert.ok(read('.github/workflows/pages.yml').includes('voyage-camera.js voyage-art.js voyage-ui.js'));
-  assert.ok(html.includes('engine.js?v=0.1.9'));
+  assert.ok(html.includes('engine.js?v=0.1.15'), 'engine.js cache version follows the 0.1.15 wind speed rules');
   assert.ok(html.includes('audio-config.js?v=0.1.5'));
   assert.ok(html.includes('sea-ui.js?v=0.1.3'));
 });
