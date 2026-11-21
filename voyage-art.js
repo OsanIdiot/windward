@@ -57,7 +57,7 @@
   function sailTrim(heading, windFrom, strength) {
     const rel = (((windFrom - heading) % 360) + 540) % 360 - 180, a = Math.abs(rel), side = rel >= 0 ? 1 : -1;
     const brace = a < 40 ? 50 * smooth(a / 40) : a < 90 ? lerp(50, 40, (a - 40) / 50) : a < 135 ? lerp(40, 18, (a - 90) / 45) : lerp(18, 0, (a - 135) / 45);
-    const luff = a < 40 ? 1 : a < 55 ? 1 - (a - 40) / 15 : 0;
+    const luff = a < 30 ? 1 : a < 45 ? 1 - (a - 30) / 15 : 0;
     const bow = a < 110 ? 0 : a > 150 ? 1 : (a - 110) / 40;
     return { rel, side, brace: -side * brace * Math.PI / 180, luff, bow, heel: Math.sin(rel * Math.PI / 180) * (.3 + .7 * strength) * (1 - luff) };
   }
@@ -148,20 +148,21 @@
       }
       return Math.max(.1, scale);
     }
-    // Sail cloth in yard-local coordinates: the yard is the straight leading edge at y = 0 (toward the bow) and the
-    // cloth always streams AFT, away from the wind, as a crescent, so a moving ship's sails read as pushed backward.
-    // With the wind astern (run) the belly is shallower; head to wind (luff) it flattens and ripples.
-    // The free edge also breathes and ripples toward the stern. sailDepth gives the depth of the belly's centre.
-    const sailEnd = d => d * .3;
+    // Sail cloth in yard-local coordinates, modelled on a real square-rigger photographed from the side: the wind
+    // pushes the cloth toward the BOW into a "(" belly, while the lower corners (clews) and loose edges trail
+    // back toward the stern. The yard is the straight chord at y = 0. Wind astern fills the sail most; head to wind
+    // (luff) the belly collapses and the cloth ripples. sailDepth is the foot curve's centre (negative = forward).
+    const sailEnd = d => d * .28;
     function sailDepth(d, belly, run, luff) {
-      return sailEnd(d) + ((d - sailEnd(d)) + belly) * (1 - run * .45) * (1 - luff * .8);
+      const e = sailEnd(d);
+      return e - (e + (d * .65 + belly) * (1 + run * .3)) * (1 - luff * .7);
     }
     function sailPath(w, d, belly, run, luff, time, phase) {
-      const p = new Path2D(), n = 14, end = sailEnd(d), signed = (sailDepth(d, belly, run, luff) - end) * (1 + .07 * Math.sin(time * 3 + phase));
+      const p = new Path2D(), n = 14, e = sailEnd(d), mid = sailDepth(d, belly, run, luff) * (1 + .06 * Math.sin(time * 3 + phase));
       p.moveTo(-w, 0); p.lineTo(w, 0);
       for (let i = n; i >= 0; i--) {
         const u = i / n, ripple = Math.sin(time * 7 - u * 9 + phase) * (.35 + luff * 1.5);
-        p.lineTo(w * (2 * u - 1) * (.9 + .1 * Math.sin(u * Math.PI)), end + signed * Math.sin(u * Math.PI) + ripple);
+        p.lineTo(w * (2 * u - 1) * .93, e + (mid - e) * Math.sin(u * Math.PI) + ripple);
       }
       p.closePath(); return p;
     }
@@ -261,7 +262,7 @@
         cloth.addColorStop(0, '#d9ccaa'); cloth.addColorStop(.3, '#fff8df'); cloth.addColorStop(.7, '#f1e2bb'); cloth.addColorStop(1, '#a39170');
         ctx.fillStyle = cloth; ctx.fill(sail); ctx.strokeStyle = '#b6a27a'; ctx.lineWidth = .7; ctx.stroke(sail);
         ctx.save(); ctx.clip(sail);
-        for (let seam = -4; seam <= 4; seam++) { ctx.strokeStyle = '#8d7a5640'; ctx.lineWidth = .55; const edge = sailEnd(depth) * (1 - tr.bow * .6) + (mid - sailEnd(depth) * (1 - tr.bow * .6)) * (1 - Math.pow(seam / 4.6, 2)); ctx.beginPath(); ctx.moveTo(w * seam / 4.6, 1); ctx.lineTo(w * seam / 4.6, edge); ctx.stroke(); }
+        for (let seam = -4; seam <= 4; seam++) { ctx.strokeStyle = '#8d7a5640'; ctx.lineWidth = .55; const edge = sailEnd(depth) + (mid - sailEnd(depth)) * (1 - Math.pow(seam / 4.6, 2)); ctx.beginPath(); ctx.moveTo(w * seam / 4.6, 1); ctx.lineTo(w * seam / 4.6, edge); ctx.stroke(); }
         ctx.restore();
         line(-w - 3, 0, w + 3, 0, '#5c432e', 2.1); line(-w - 3, -.7, w + 3, -.7, '#e1c391', .5);
         ctx.restore();
