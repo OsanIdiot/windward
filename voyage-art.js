@@ -62,9 +62,10 @@
         }
       }
     }
-    function shipScale(width, height, x, y, bearing, tier, compact) {
+    function shipScale(width, height, x, y, bearing, tier) {
       const a = bearing * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-      let scale = (compact ? .88 : 1.08) * (1 + tier * .035);
+      // Scale with the viewport like the map does, so the ship keeps the same proportion on phones and desktops.
+      let scale = Math.max(.45, Math.min(.8, Math.min(width, height) / 820)) * (1 + tier * .035);
       // Fit even a fully upgraded ship in a short landscape viewport, including a rocking margin.
       for (const [px, py] of [[-65, -103], [65, -103], [-65, 62], [65, 62]]) {
         const dx = px * c - py * s, dy = px * s + py * c;
@@ -73,9 +74,9 @@
       }
       return Math.max(.1, scale);
     }
-    function ship({ x, y, width, height, bearing, time, moving, tier, speed, wind, bank, compact, reduced }) {
+    function ship({ x, y, width, height, bearing, time, moving, tier, speed, wind, bank, reduced }) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(bearing * Math.PI / 180);
-      const size = shipScale(width, height, x, y, bearing, tier, compact); ctx.scale(size, size);
+      const size = shipScale(width, height, x, y, bearing, tier); ctx.scale(size, size);
       const shadow = ctx.createRadialGradient(10, 12, 9, 10, 12, 65);
       shadow.addColorStop(0, '#032b4280'); shadow.addColorStop(1, '#032b4200');
       ctx.fillStyle = shadow; ctx.fillRect(-55, -53, 130, 135);
