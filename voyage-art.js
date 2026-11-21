@@ -148,26 +148,28 @@
       }
       return Math.max(.1, scale);
     }
-    // Sail cloth in yard-local coordinates: the yard is the straight leading edge at y = 0 (toward the bow) and a
-    // filled sail bellies AFT, away from the wind, as a crescent. With the wind astern the cloth bellies forward
-    // instead; head to wind (luff) it flattens and ripples. sailDepth gives the signed centre of the belly.
+    // Sail cloth in yard-local coordinates: the yard is the straight leading edge at y = 0 (toward the bow) and the
+    // cloth always streams AFT, away from the wind, as a crescent, so a moving ship's sails read as pushed backward.
+    // With the wind astern (run) the belly is shallower; head to wind (luff) it flattens and ripples.
+    // The free edge also breathes and ripples toward the stern. sailDepth gives the depth of the belly's centre.
     const sailEnd = d => d * .3;
-    function sailDepth(d, belly, bow, luff) {
-      const aft = (d - sailEnd(d)) + belly;
-      return sailEnd(d) * (1 - bow * .6) + lerp(aft, -(belly + (d - sailEnd(d)) * .6), bow) * (1 - luff * .8);
+    function sailDepth(d, belly, run, luff) {
+      return sailEnd(d) + ((d - sailEnd(d)) + belly) * (1 - run * .45) * (1 - luff * .8);
     }
-    function sailPath(w, d, belly, bow, luff, time, phase) {
-      const p = new Path2D(), n = 14, end = sailEnd(d) * (1 - bow * .6), signed = sailDepth(d, belly, bow, luff) - end;
+    function sailPath(w, d, belly, run, luff, time, phase) {
+      const p = new Path2D(), n = 14, end = sailEnd(d), signed = (sailDepth(d, belly, run, luff) - end) * (1 + .07 * Math.sin(time * 3 + phase));
       p.moveTo(-w, 0); p.lineTo(w, 0);
       for (let i = n; i >= 0; i--) {
-        const u = i / n, ripple = luff ? Math.sin(time * 9 + u * 11 + phase) * luff * 1.8 : 0;
+        const u = i / n, ripple = Math.sin(time * 7 - u * 9 + phase) * (.35 + luff * 1.5);
         p.lineTo(w * (2 * u - 1) * (.9 + .1 * Math.sin(u * Math.PI)), end + signed * Math.sin(u * Math.PI) + ripple);
       }
       p.closePath(); return p;
     }
     // A pennant streams toward where the wind is blowing, in the ship's own frame.
     function pennant(x, y, wind, heading, time, reduced, length, color, outline) {
-      const phi = (wind.from + 180 - heading) * Math.PI / 180, dx = Math.sin(phi), dy = -Math.cos(phi), nx = -dy, ny = dx;
+      // Streams astern like everything on a moving ship, swung sideways by where the wind is blowing.
+      const phi = (wind.from + 180 - heading) * Math.PI / 180, wx = Math.sin(phi) * .8 * (.5 + wind.strength * .5), wy = -Math.cos(phi) * .8 * (.5 + wind.strength * .5);
+      const norm = Math.hypot(wx, 1 + wy) || 1, dx = wx / norm, dy = (1 + wy) / norm, nx = -dy, ny = dx;
       const len = length * (.7 + wind.strength * .6), f = reduced ? 0 : Math.sin(time * 4);
       ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y);
       ctx.quadraticCurveTo(x + dx * len * .5 + nx * (2 + f * 1.5), y + dy * len * .5 + ny * (2 + f * 1.5), x + dx * len + nx * f * 2, y + dy * len + ny * f * 2);
