@@ -1,6 +1,6 @@
 # Lisbon Coastal Study 01
 
-Isolated, playable rendering prototype. The public Windward game remains **0.1.10**.
+Isolated, playable rendering prototype. The public Windward game remains **0.1.11**.
 The experiment is not referenced by the production entry point. The Pages workflow publishes an explicit browser-asset allowlist separately under `/windward/lab/`, without changing the root game or reading its saves. This preview is public, not password protected; `noindex` is only a request to search engines, not access control.
 
 Public preview: https://osanidiot.github.io/windward/lab/
